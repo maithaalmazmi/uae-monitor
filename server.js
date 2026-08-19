@@ -10,7 +10,7 @@ import { CRON_SCHEDULE } from "./config.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 app.use(cors());
-app.use(express.static(path.join(__dirname, "..", "public")));
+app.use(express.static(__dirname));
 
 // --- API ---
 app.get("/api/feed", (req, res) => {
