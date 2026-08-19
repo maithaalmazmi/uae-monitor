@@ -41,7 +41,7 @@ async function cycle() {
 }
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`UAE Monitor running on http://localhost:${PORT}`);
   cycle(); // initial fill
   cron.schedule(CRON_SCHEDULE, cycle);
