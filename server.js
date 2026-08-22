@@ -4,13 +4,14 @@ import cron from "node-cron";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { collectAll } from "./collectors.js";
+import { collectApify } from "./apify.js";
 import { upsertMany, getItems, stats } from "./store.js";
-import { CRON_SCHEDULE } from "./config.js";
+import { CRON_SCHEDULE, APIFY_TOKEN, APIFY_INTERVAL_MIN } from "./config.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 app.use(cors());
-app.use(express.static(__dirname));
+app.use(express.static(path.join(__dirname, "..", "public")));
 
 // --- API ---
 app.get("/api/feed", (req, res) => {
@@ -40,10 +41,34 @@ async function cycle() {
   }
 }
 
-const PORT = 3000;
-app.listen(PORT, "0.0.0.0", () => {
+// --- Social collection via Apify, on a slower schedule to control spend ---
+let apifyRunning = false;
+async function apifyCycle() {
+  if (!APIFY_TOKEN || apifyRunning) return;
+  apifyRunning = true;
+  try {
+    const items = await collectApify();
+    const added = upsertMany(items);
+    console.log(`[apify-cycle] ${items.length} fetched, ${added} new`);
+  } catch (err) {
+    console.error("[apify-cycle] error:", err.message);
+  } finally {
+    apifyRunning = false;
+  }
+}
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
   console.log(`UAE Monitor running on http://localhost:${PORT}`);
   cycle(); // initial fill
   cron.schedule(CRON_SCHEDULE, cycle);
-  console.log(`Scheduled collection: ${CRON_SCHEDULE}`);
+  console.log(`Scheduled news collection: ${CRON_SCHEDULE}`);
+
+  if (APIFY_TOKEN) {
+    apifyCycle(); // one social pull on boot
+    setInterval(apifyCycle, APIFY_INTERVAL_MIN * 60 * 1000);
+    console.log(`Social (Apify) collection every ${APIFY_INTERVAL_MIN} min`);
+  } else {
+    console.log("Social (Apify) disabled — set APIFY_TOKEN to enable X/Instagram/TikTok");
+  }
 });
