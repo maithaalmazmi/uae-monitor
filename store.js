@@ -1,9 +1,15 @@
-// Simple in-memory rolling store, deduplicated by a stable id.
-// Swap this for Postgres/Redis in production (see README "Scaling").
-import { MAX_ITEMS } from "./config.js";
+// Rolling in-memory store, deduplicated by a stable id.
+//
+// News arrives every 2 minutes; social arrives every few hours. Trimming purely
+// by recency therefore lets the news flood evict social posts almost as soon as
+// they land. So the trim keeps a reserved block of the newest social items and
+// fills the rest with everything else.
+import { MAX_ITEMS, SOCIAL_RESERVE } from "./config.js";
 
 const items = new Map(); // id -> item
 let lastUpdated = null;
+
+const isSocial = (i) => i.kind === "social";
 
 export function upsertMany(newItems) {
   let added = 0;
@@ -11,12 +17,22 @@ export function upsertMany(newItems) {
     if (!items.has(it.id)) added++;
     items.set(it.id, it);
   }
-  // Trim to newest MAX_ITEMS
+
   if (items.size > MAX_ITEMS) {
-    const sorted = [...items.values()].sort((a, b) => b.ts - a.ts);
-    items.clear();
-    for (const it of sorted.slice(0, MAX_ITEMS)) items.set(it.id, it);
+    const all = [...items.values()].sort((a, b) => b.ts - a.ts);
+    const social = all.filter(isSocial).slice(0, SOCIAL_RESERVE);
+    const keep = new Set(social.map((i) => i.id));
+
+    for (const it of all) {                    // newest first
+      if (keep.size >= MAX_ITEMS) break;
+      keep.add(it.id);
+    }
+
+    for (const id of [...items.keys()]) {
+      if (!keep.has(id)) items.delete(id);
+    }
   }
+
   lastUpdated = new Date().toISOString();
   return added;
 }
@@ -38,6 +54,10 @@ export function getItems({ source, topic, q, limit = 200 } = {}) {
 
 export function stats() {
   const bySource = {};
-  for (const i of items.values()) bySource[i.source] = (bySource[i.source] || 0) + 1;
-  return { total: items.size, bySource, lastUpdated };
+  let social = 0;
+  for (const i of items.values()) {
+    bySource[i.source] = (bySource[i.source] || 0) + 1;
+    if (isSocial(i)) social++;
+  }
+  return { total: items.size, social, bySource, lastUpdated };
 }

@@ -51,8 +51,16 @@ export const RSS_FEEDS = [
   { name: "Times of Israel", url: "https://www.timesofisrael.com/feed/",              region: "me" },
 
   // ===================== AMERICAS =====================
-  { name: "New York Times — World",       url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",      region: "am" },
-  { name: "New York Times — Middle East", url: "https://rss.nytimes.com/services/xml/rss/nyt/MiddleEast.xml", region: "me" },
+  // New York Times — section feeds. The desk feeds are the fastest route to NYT
+  // copy; the site: search below catches UAE stories filed to any other desk.
+  { name: "New York Times — World",        url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",       region: "am" },
+  { name: "New York Times — Middle East",  url: "https://rss.nytimes.com/services/xml/rss/nyt/MiddleEast.xml",  region: "me" },
+  { name: "New York Times — Politics",     url: "https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml",    region: "am" },
+  { name: "New York Times — Europe",       url: "https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml",      region: "eu" },
+  { name: "New York Times — Asia Pacific", url: "https://rss.nytimes.com/services/xml/rss/nyt/AsiaPacific.xml", region: "as" },
+  { name: "New York Times — Africa",       url: "https://rss.nytimes.com/services/xml/rss/nyt/Africa.xml",      region: "af" },
+  { name: "New York Times — Americas",     url: "https://rss.nytimes.com/services/xml/rss/nyt/Americas.xml",    region: "am" },
+  { name: "New York Times — UAE watch",    url: gnews("site:nytimes.com (UAE OR Emirates OR Dubai OR \"Abu Dhabi\" OR Gulf) when:7d"), region: "uae" },
   { name: "Washington Post — World",      url: "https://feeds.washingtonpost.com/rss/world",                  region: "am" },
   { name: "CNN — World",                  url: "http://rss.cnn.com/rss/edition_world.rss",                    region: "am" },
   { name: "Associated Press",             url: gnews("site:apnews.com (security OR diplomacy OR military) when:2d"), region: "am" },
@@ -92,9 +100,10 @@ export const REDDIT_SUBS = ["UAE", "dubai", "geopolitics", "worldnews"];
 
 // Bluesky: public AppView search. Fully open, no authentication required.
 export const BLUESKY_QUERIES = [
-  "UAE security", "UAE politics", "Emirates government",
-  "Abu Dhabi policy", "Dubai security", "UAE human rights",
-  "environmental crime Gulf", "wildlife trafficking", "child protection Gulf"
+  "UAE sanctions", "UAE military", "UAE government", "UAE minister",
+  "Emirates diplomacy", "Abu Dhabi policy", "Dubai security",
+  "UAE human rights", "Gulf security", "Gulf conflict",
+  "wildlife trafficking", "child protection"
 ];
 
 // Mastodon: public hashtag timelines across the largest instances. No auth.
@@ -147,7 +156,18 @@ export const CRON_SCHEDULE = process.env.CRON_SCHEDULE || "*/2 * * * *";
 // ---------------------------------------------------------------------------
 export const APIFY_TOKEN = process.env.APIFY_TOKEN || "";
 export const APIFY_INTERVAL_MIN = Number(process.env.APIFY_INTERVAL_MIN || 360); // 6 hours
-export const APIFY_MAX_ITEMS = Number(process.env.APIFY_MAX_ITEMS || 15);        // per platform per run
+export const APIFY_MAX_ITEMS = Number(process.env.APIFY_MAX_ITEMS || 25);        // default per run
+
+// Per-platform limits. Real billing showed TikTok costing ~30x what X and
+// Instagram cost for the same number of items, so it gets its own small cap.
+export const APIFY_LIMITS = {
+  x:         Number(process.env.APIFY_X_ITEMS         || APIFY_MAX_ITEMS),
+  xroyal:    Number(process.env.APIFY_X_ROYAL_ITEMS   || 140), // heads of state / ruling families
+  xregion:   Number(process.env.APIFY_X_REGION_ITEMS  || 35),  // political/economic by region
+  instagram: Number(process.env.APIFY_INSTAGRAM_ITEMS || APIFY_MAX_ITEMS),
+  tiktok:    Number(process.env.APIFY_TIKTOK_ITEMS    || 8),
+  facebook:  Number(process.env.APIFY_FACEBOOK_ITEMS  || 10)
+};
 
 // Turn individual platforms on/off (set to "0" in Railway to disable one)
 export const APIFY_PLATFORMS = {
@@ -158,7 +178,180 @@ export const APIFY_PLATFORMS = {
 };
 
 // What to look for on each platform
-export const APIFY_X_QUERIES  = ["UAE security", "UAE politics", "Emirates government"];
+export const APIFY_X_QUERIES  = [
+  "UAE security", "UAE politics", "Emirates government",
+  "الإمارات الأمن", "الإمارات سياسة", "أبوظبي حكومة"
+];
+
+// --- X: heads of state, governments and ruling families ----------------
+// The account IS the filter: everything these handles post is collected and
+// routed to the "positive / official" tab without a keyword gate.
+//
+// A NOTE ON HANDLES, because it decides how well this list ages:
+// office accounts (@POTUS, @Elysee, @Bundeskanzler, @PresidencyZA) survive
+// elections; personal accounts belong to whoever held the job when this was
+// written and go quiet the day they leave. Office handles are preferred below
+// wherever one exists. A handle that is wrong or retired simply returns
+// nothing — it never breaks a run — so prune and add freely.
+export const APIFY_X_LEADERS = [
+  // ============================= MIDDLE EAST =============================
+  { handle: "MohamedBinZayed", name: "Sheikh Mohamed bin Zayed",        region: "uae" },
+  { handle: "HHShkMohd",       name: "Sheikh Mohammed bin Rashid",      region: "uae" },
+  { handle: "HamdanMohammed",  name: "Sheikh Hamdan bin Mohammed",      region: "uae" },
+  { handle: "MaktoumMohammed", name: "Sheikh Maktoum bin Mohammed",     region: "uae" },
+  { handle: "ABZayed",         name: "Sheikh Abdullah bin Zayed",       region: "uae" },
+  { handle: "UAEmediaoffice",  name: "UAE Media Office",                region: "uae" },
+  { handle: "MoFAUAE",         name: "UAE Ministry of Foreign Affairs", region: "uae" },
+  { handle: "wamnews",         name: "WAM",                             region: "uae" },
+  { handle: "KingSalman",      name: "King Salman (Saudi Arabia)",      region: "me" },
+  { handle: "KSAMOFA",         name: "Saudi Foreign Ministry",          region: "me" },
+  { handle: "TamimBinHamad",   name: "Emir Tamim bin Hamad (Qatar)",    region: "me" },
+  { handle: "AmiriDiwan",      name: "Amiri Diwan (Qatar)",             region: "me" },
+  { handle: "KingAbdullahII",  name: "King Abdullah II (Jordan)",       region: "me" },
+  { handle: "QueenRania",      name: "Queen Rania (Jordan)",            region: "me" },
+  { handle: "RHCJO",           name: "Royal Hashemite Court (Jordan)",  region: "me" },
+  { handle: "kuwaitmofa",      name: "Kuwait Foreign Ministry",         region: "me" },
+  { handle: "FMofOman",        name: "Oman Foreign Ministry",           region: "me" },
+  { handle: "bahdiplomatic",   name: "Bahrain Foreign Ministry",        region: "me" },
+  { handle: "AlsisiOfficial",  name: "President el-Sisi (Egypt)",       region: "me" },
+  { handle: "IsraeliPM",       name: "Prime Minister of Israel",        region: "me" },
+  { handle: "RTErdogan",       name: "President Erdogan (Turkey)",      region: "me" },
+  { handle: "trpresidency",    name: "Turkish Presidency",              region: "me" },
+  { handle: "Iraqi_GOV",       name: "Government of Iraq",              region: "me" },
+
+  // ============================== AMERICAS ===============================
+  { handle: "POTUS",           name: "President of the United States",  region: "am" },
+  { handle: "WhiteHouse",      name: "The White House",                 region: "am" },
+  { handle: "StateDept",       name: "US State Department",             region: "am" },
+  { handle: "CanadianPM",      name: "Prime Minister of Canada",        region: "am" },
+  { handle: "PresidenciaMX",   name: "Presidency of Mexico",            region: "am" },
+  { handle: "planalto",        name: "Presidency of Brazil",            region: "am" },
+  { handle: "CasaRosada",      name: "Presidency of Argentina",         region: "am" },
+  { handle: "GobiernodeChile", name: "Government of Chile",             region: "am" },
+  { handle: "infopresidencia", name: "Presidency of Colombia",          region: "am" },
+  { handle: "presidenciaperu", name: "Presidency of Peru",              region: "am" },
+
+  // =============================== EUROPE ================================
+  { handle: "10DowningStreet", name: "UK Prime Minister's Office",      region: "eu" },
+  { handle: "RoyalFamily",     name: "The British Royal Family",        region: "eu" },
+  { handle: "KensingtonRoyal", name: "Prince & Princess of Wales",      region: "eu" },
+  { handle: "Elysee",          name: "Presidency of France",            region: "eu" },
+  { handle: "Bundeskanzler",   name: "Chancellor of Germany",           region: "eu" },
+  { handle: "Palazzo_Chigi",   name: "Prime Minister of Italy",         region: "eu" },
+  { handle: "desdelamoncloa",  name: "Government of Spain",             region: "eu" },
+  { handle: "CasaReal",        name: "Spanish Royal Household",         region: "eu" },
+  { handle: "MonarchieBe",     name: "Belgian Monarchy",                region: "eu" },
+  { handle: "MinPres",         name: "Prime Minister of the Netherlands", region: "eu" },
+  { handle: "Statsmin",        name: "Prime Minister of Denmark",       region: "eu" },
+  { handle: "SweMFA",          name: "Swedish Foreign Ministry",        region: "eu" },
+  { handle: "Statsmin_kontor", name: "Prime Minister of Norway",        region: "eu" },
+  { handle: "KPRM",            name: "Chancellery of Poland",           region: "eu" },
+  { handle: "ZelenskyyUa",     name: "President Zelenskyy (Ukraine)",   region: "eu" },
+  { handle: "APUkraine",       name: "Presidency of Ukraine",           region: "eu" },
+  { handle: "KremlinRussia_E", name: "Kremlin (Russia)",                region: "eu" },
+  { handle: "mfa_russia",      name: "Russian Foreign Ministry",        region: "eu" },
+  { handle: "merrionstreet",   name: "Government of Ireland",           region: "eu" },
+  { handle: "PrimeministerGR", name: "Prime Minister of Greece",        region: "eu" },
+  { handle: "eucopresident",   name: "President of the European Council", region: "eu" },
+  { handle: "EU_Commission",   name: "European Commission",             region: "eu" },
+  { handle: "NATO",            name: "NATO",                            region: "eu" },
+
+  // ================================ ASIA =================================
+  { handle: "PMOIndia",        name: "Prime Minister's Office (India)", region: "as" },
+  { handle: "MEAIndia",        name: "Indian Foreign Ministry",         region: "as" },
+  { handle: "MFA_China",       name: "Chinese Foreign Ministry",        region: "as" },
+  { handle: "JPN_PMO",         name: "Prime Minister's Office (Japan)", region: "as" },
+  { handle: "MofaJapan_en",    name: "Japanese Foreign Ministry",       region: "as" },
+  { handle: "MOFAkr_eng",      name: "Korean Foreign Ministry",         region: "as" },
+  { handle: "PakPMO",          name: "Prime Minister's Office (Pakistan)", region: "as" },
+  { handle: "Kemlu_RI",        name: "Indonesian Foreign Ministry",     region: "as" },
+  { handle: "MFAsingapore",    name: "Singapore Foreign Ministry",      region: "as" },
+  { handle: "MalaysiaMFA",     name: "Malaysian Foreign Ministry",      region: "as" },
+  { handle: "MFAThai",         name: "Thai Foreign Ministry",           region: "as" },
+  { handle: "pcogovph",        name: "Government of the Philippines",   region: "as" },
+  { handle: "AkordaPress",     name: "Presidency of Kazakhstan",        region: "as" },
+
+  // =============================== AFRICA ================================
+  { handle: "_AfricanUnion",   name: "African Union",                   region: "af" },
+  { handle: "PresidencyZA",    name: "Presidency of South Africa",      region: "af" },
+  { handle: "NGRPresident",    name: "Presidency of Nigeria",           region: "af" },
+  { handle: "StateHouseKenya", name: "State House Kenya",               region: "af" },
+  { handle: "GhanaPresidency", name: "Presidency of Ghana",             region: "af" },
+  { handle: "PaulKagame",      name: "President Kagame (Rwanda)",       region: "af" },
+  { handle: "UrugwiroVillage", name: "Presidency of Rwanda",            region: "af" },
+  { handle: "AbiyAhmedAli",    name: "Prime Minister of Ethiopia",      region: "af" },
+  { handle: "PR_Senegal",      name: "Presidency of Senegal",           region: "af" },
+
+  // ========================= AUSTRALIA & PACIFIC =========================
+  { handle: "AustralianPM",    name: "Prime Minister of Australia",     region: "oc" },
+  { handle: "dfat",            name: "Australian Foreign Affairs",      region: "oc" },
+  { handle: "nzgovt",          name: "New Zealand Government",          region: "oc" },
+  { handle: "beehivegovtnz",   name: "New Zealand Beehive",             region: "oc" },
+
+  // ============================ GLOBAL BODIES ============================
+  { handle: "UN",              name: "United Nations",                  region: "gl" },
+  { handle: "antonioguterres", name: "UN Secretary-General",            region: "gl" },
+
+  // ===================== PERSONAL ACCOUNTS OF SERVING LEADERS =============
+  // These sit alongside the office handles above, not instead of them: a leader
+  // writing in the first person says things a press office never posts.
+  //
+  // They are also the entries that go stale fastest — each one belongs to
+  // whoever held the job when this file was written, and goes quiet the day
+  // they leave office. Expect to prune this block after elections. A dead
+  // handle returns nothing; it never breaks a run.
+  { handle: "realDonaldTrump", name: "President Trump (United States)",  region: "am" },
+  { handle: "VP",              name: "Vice President (United States)",   region: "am" },
+  { handle: "MarkJCarney",     name: "PM Carney (Canada)",               region: "am" },
+  { handle: "Claudiashein",    name: "President Sheinbaum (Mexico)",     region: "am" },
+  { handle: "LulaOficial",     name: "President Lula (Brazil)",          region: "am" },
+  { handle: "JMilei",          name: "President Milei (Argentina)",      region: "am" },
+  { handle: "Keir_Starmer",    name: "PM Starmer (United Kingdom)",      region: "eu" },
+  { handle: "EmmanuelMacron",  name: "President Macron (France)",        region: "eu" },
+  { handle: "_FriedrichMerz",  name: "Chancellor Merz (Germany)",        region: "eu" },
+  { handle: "GiorgiaMeloni",   name: "PM Meloni (Italy)",                region: "eu" },
+  { handle: "sanchezcastejon", name: "PM Sanchez (Spain)",               region: "eu" },
+  { handle: "donaldtusk",      name: "PM Tusk (Poland)",                 region: "eu" },
+  { handle: "kmitsotakis",     name: "PM Mitsotakis (Greece)",           region: "eu" },
+  { handle: "MichealMartinTD", name: "Taoiseach Martin (Ireland)",       region: "eu" },
+  { handle: "jonasgahrstore",  name: "PM Store (Norway)",                region: "eu" },
+  { handle: "SwedishPM",       name: "Prime Minister of Sweden",         region: "eu" },
+  { handle: "vonderleyen",     name: "President von der Leyen (EU)",     region: "eu" },
+  { handle: "netanyahu",       name: "PM Netanyahu (Israel)",            region: "me" },
+  { handle: "narendramodi",    name: "PM Modi (India)",                  region: "as" },
+  { handle: "CMShehbaz",       name: "PM Sharif (Pakistan)",             region: "as" },
+  { handle: "prabowo",         name: "President Prabowo (Indonesia)",    region: "as" },
+  { handle: "bongbongmarcos",  name: "President Marcos (Philippines)",   region: "as" },
+  { handle: "CyrilRamaphosa",  name: "President Ramaphosa (South Africa)", region: "af" },
+  { handle: "officialABAT",    name: "President Tinubu (Nigeria)",       region: "af" },
+  { handle: "WilliamsRuto",    name: "President Ruto (Kenya)",           region: "af" },
+  { handle: "AlboMP",          name: "PM Albanese (Australia)",          region: "oc" },
+  { handle: "chrisluxonmp",    name: "PM Luxon (New Zealand)",           region: "oc" }
+];
+
+// X handles are at most 15 characters of [A-Za-z0-9_]. A typo would otherwise
+// fail silently forever, so it is called out once at boot.
+for (const l of APIFY_X_LEADERS) {
+  if (!/^[A-Za-z0-9_]{1,15}$/.test(l.handle))
+    console.warn(`[config] invalid X handle "${l.handle}" (${l.name}) — it will return nothing`);
+}
+
+// Kept for backward compatibility with earlier versions of this config.
+export const APIFY_X_ROYALS = APIFY_X_LEADERS;
+
+// --- X: political & economic reporting, routed by region -----------------
+// Each entry's region decides which map area and filter chip the post lands in,
+// so a post never has to name a country in its own text to be placed correctly.
+export const APIFY_X_REGIONS = [
+  { region: "me", query: "(Gulf OR GCC OR \"Middle East\") (politics OR economy OR sanctions OR summit)" },
+  { region: "me", query: "(الخليج OR \"الشرق الأوسط\") (سياسة OR اقتصاد OR عقوبات OR قمة)" },
+  { region: "am", query: "(\"United States\" OR Washington) (foreign policy OR sanctions OR economy) Gulf OR UAE" },
+  { region: "eu", query: "(Europe OR Brussels OR EU) (foreign policy OR sanctions OR trade) Gulf OR UAE" },
+  { region: "as", query: "(China OR India OR Asia) (trade OR economy OR security) Gulf OR UAE" },
+  { region: "af", query: "(Africa OR Sudan OR Egypt OR Libya) (politics OR conflict OR economy) UAE OR Gulf" },
+  { region: "gl", query: "(geopolitics OR \"global economy\" OR sanctions) (UAE OR Emirates OR Gulf)" }
+];
+
 export const APIFY_HASHTAGS   = ["UAE", "Dubai", "AbuDhabi"];
 export const APIFY_FB_PAGES   = []; // e.g. ["https://www.facebook.com/AlJazeera"]
 
@@ -170,4 +363,6 @@ export const X_QUERY = process.env.X_QUERY || "(UAE OR Emirates) (security OR po
 export const IG_ACCESS_TOKEN = process.env.IG_ACCESS_TOKEN || "";
 export const IG_USER_ID = process.env.IG_USER_ID || "";
 
-export const MAX_ITEMS = 900; // rolling store cap
+export const MAX_ITEMS = 2000;
+// Newest social posts protected from being evicted by the much faster news feed
+export const SOCIAL_RESERVE = Number(process.env.SOCIAL_RESERVE || 400); // rolling store cap

@@ -80,6 +80,29 @@ a{color:inherit}
 .seg button.on{background:var(--ink);color:#fff}
 .seg button.crit.on{background:var(--crit)}
 .seg button.crit{color:var(--crit)}
+/* positive & official — green, the counterweight to the sensitive red */
+.seg button.pos.on{background:#146B4B;border-color:#146B4B}
+.seg button.pos{color:#146B4B}
+/* exclusive-only toggle */
+.xtog{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:6px 12px;
+  border:1px solid var(--line);border-radius:999px;background:transparent;cursor:pointer;
+  font:inherit;font-size:12px;font-weight:700;color:var(--ink2);letter-spacing:.3px;
+  transition:background .18s,color .18s,border-color .18s}
+.xtog i{width:8px;height:8px;border-radius:50%;background:var(--ink3);transition:background .18s,box-shadow .18s}
+.xtog:hover{border-color:#C8A951;color:var(--ink)}
+.xtog[aria-pressed="true"]{background:#8A6D1F;border-color:#8A6D1F;color:#fff}
+.xtog[aria-pressed="true"] i{background:#F2D479;box-shadow:0 0 0 3px rgba(242,212,121,.28)}
+.xtog:focus-visible{outline:2px solid #8A6D1F;outline-offset:2px}
+/* exclusive + corroboration badges */
+.xcl{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;
+  letter-spacing:.7px;text-transform:uppercase;padding:2px 7px;border-radius:4px;
+  background:#8A6D1F;color:#fff}
+.xcl::before{content:"";width:5px;height:5px;border-radius:50%;background:#F2D479;
+  animation:xpulse 2.4s ease-in-out infinite}
+@keyframes xpulse{0%,100%{opacity:1}50%{opacity:.35}}
+.dupe{font-size:10px;font-weight:700;color:var(--ink3);letter-spacing:.3px;
+  border:1px solid var(--line);border-radius:4px;padding:1px 6px}
+@media (prefers-reduced-motion:reduce){.xcl::before{animation:none}}
 .regs{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .regs .rl{font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink3)}
 .regs button{border:1px solid var(--line2);background:var(--card);font:inherit;font-size:12px;
@@ -165,6 +188,7 @@ a{color:inherit}
 .bar .bf{display:block;height:100%;border-radius:4px;background:var(--data);width:0;
   transition:width .9s cubic-bezier(.2,.8,.2,1)}
 .bar.c .bf{background:var(--crit)}
+.bar.p .bf{background:#146B4B}
 
 /* CHART: area */
 .spark{width:100%;height:76px;display:block;overflow:visible}
@@ -204,6 +228,12 @@ a{color:inherit}
 .item p{margin:0 0 8px;font-size:13.5px;color:var(--ink2);line-height:1.55;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .item.crit{border-inline-start:3px solid var(--crit);padding-inline-start:14px}
+.item.pos{border-inline-start:3px solid #146B4B;padding-inline-start:14px}
+.item.pos:hover{padding-inline-start:19px}
+/* ruling-family / official account */
+.crown{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;
+  letter-spacing:.5px;padding:2px 7px;border-radius:4px;background:#146B4B;color:#fff}
+.crown svg{width:11px;height:11px;fill:#F2D479}
 .item.crit:hover{padding-inline-start:19px}
 .meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px}
 .src{font-weight:700;color:var(--accent)}
@@ -211,6 +241,7 @@ a{color:inherit}
 .tg{padding:2px 8px;border-radius:4px;font-size:9.5px;font-weight:800;letter-spacing:.7px;
   text-transform:uppercase;background:var(--paper2);color:var(--ink2)}
 .tg.critical{background:#fbe7e5;color:var(--crit)}
+.tg.positive{background:#dff2e8;color:#0F5638}
 .tg.social{background:#ede8fa;color:#5a3fb8}
 .plat{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;
   font-size:9.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;
@@ -628,6 +659,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,
 .item:hover{padding-inline-start:17px}
 /* critical keeps its own signal: tinted row + red tag, edge still shows the source type */
 .item.crit{background:linear-gradient(90deg,rgba(168,50,47,.075),transparent 55%)}
+.item.pos{background:linear-gradient(90deg,rgba(20,107,75,.075),transparent 55%)}
 .item.crit.social{background:linear-gradient(90deg,rgba(168,50,47,.075),rgba(124,58,237,.04) 45%,transparent)}
 .item.crit:hover{padding-inline-start:17px}
 /* legend under the section head */
@@ -733,6 +765,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,
       <input id="q" placeholder="Search headlines, outlets, topics…" />
     </div>
     <div class="seg" id="cats"></div>
+    <button class="xtog" id="xtog" aria-pressed="false" title="Exclusive only"><i></i><span data-i="xonly">Exclusive only</span></button>
     <div class="regs" id="regs"><span class="rl" data-i="region">Region</span></div>
   </div>
 </div>
@@ -947,7 +980,29 @@ const NEG=[
  /* security sensitivity */
  "espionage","spy","spying","surveillance","hacking","pegasus","mercenar","arms transfer",
  "weapons transfer","smuggling","militia","insurgen","cyberattack","breach","leak"];
-const UAE_T=["uae","emirates","emirati","abu dhabi","dubai","sharjah","ajman","fujairah"];
+/* Positive / official standing — the mirror image of NEG. Same two-condition
+   rule: the item must name the UAE AND carry one of these, and it must carry
+   no NEG term at all (an award announced inside a scandal story is not good news). */
+const POS=[
+ /* recognition and standing */
+ "award","awarded","wins","won","first place","top rank","ranked first","ranking","record",
+ "milestone","achievement","honou","honor","recognis","recogniz","praise","commend","hail",
+ "congratulat","celebrat","success","breakthrough","pioneer","leading","leadership",
+ /* diplomacy and cooperation */
+ "agreement","accord","memorandum","mou","partnership","cooperation","collaborat","alliance",
+ "signed","summit hosted","hosts","welcomed","state visit","official visit","bilateral",
+ "strengthen ties","deepen ties","normalis","normaliz","peace deal","mediation","brokered",
+ /* aid and development */
+ "humanitarian","aid","relief","donat","pledge","funding","investment","launch","initiative",
+ "development","sustainab","renewable","clean energy","net zero","reforest","conservation",
+ "scholarship","hospital","school opened","housing","rescue","evacuat"];
+
+/* Ruling-family and official accounts carry a crown badge and always sit in the
+   positive/official tab, whatever the wording of the post. */
+const ROYAL_RX=/\b(president|presidency|prime minister|pm's office|chancellor|chancellery|royal|monarchy|crown prince|king |queen |emir |sheikh |state house|white house|downing street|foreign ministry|ministry of foreign|government of|媒体|الشيخ |سمو |الرئيس|رئيس الوزراء|الديوان|وزارة الخارجية)\b/i;
+
+const UAE_T=["uae","emirates","emirati","abu dhabi","dubai","sharjah","ajman","fujairah",
+ "الإمارات","الامارات","أبوظبي","ابوظبي","دبي","الشارقة"];
 const REG={uae:UAE_T,
  me:["middle east","gulf","gcc","saudi","qatar","oman","bahrain","kuwait","iran","iraq","israel","yemen","syria","lebanon","jordan"],
  am:["united states","u.s.","washington","america","canada","brazil","mexico"],
@@ -957,7 +1012,11 @@ const REG={uae:UAE_T,
  oc:["australia","new zealand","pacific"]};
 function cats(t){t=t.toLowerCase();const o=[];
  for(const[k,w]of Object.entries(RULES))if(w.some(x=>t.includes(x)))o.push(k);
- if(UAE_T.some(x=>t.includes(x))&&NEG.some(x=>t.includes(x)))o.unshift("critical");
+ const uae=UAE_T.some(x=>t.includes(x)),neg=NEG.some(x=>t.includes(x));
+ if(uae&&neg)o.unshift("critical");
+ // Positive only when nothing sensitive is in the same text — good news reported
+ // inside a criticism piece is still a criticism piece.
+ else if(uae&&POS.some(x=>t.includes(x)))o.unshift("positive");
  return o.length?o:["general"];}
 /* consumer / lifestyle / business-expansion copy carries no intelligence value */
 const NOISE=["metro line","rail network","railway","autonomous rail","new terminal",
@@ -989,7 +1048,8 @@ const T={en:{title:"UAE Intelligence Monitor",kicker:"Security & Political Intel
  foot:"UAE Intelligence Monitor — aggregated public reporting",foot2:"Auto-refresh every 2 minutes",
  loading:"Loading…",empty:"No matching reports.",search:"Search headlines, outlets, topics…",
  outlets:n=>`${n} outlets`,showing:n=>`${n} shown`,
- C:{all:"All",critical:"Sensitive",social:"Social",security:"Security",political:"Political",defense:"Defence",diplomacy:"Diplomacy",economy:"Economy",environment:"Environmental crime",childsafety:"Child safety & assault",general:"General"},
+ xonly:"Exclusive only",xcl:"Exclusive",royal:"Official",dupes:n=>n===1?"+1 outlet carried this":`+${n} outlets carried this`,
+ C:{all:"All",critical:"Sensitive",positive:"Positive & official",social:"Social",security:"Security",political:"Political",defense:"Defence",diplomacy:"Diplomacy",economy:"Economy",environment:"Environmental crime",childsafety:"Child safety & assault",general:"General"},
  R:{all:"All",uae:"UAE",me:"Middle East",am:"Americas",eu:"Europe",as:"Asia",af:"Africa",oc:"Australia & Pacific",gl:"Global"},
  ago:{s:"s ago",m:"m ago",h:"h ago",d:"d ago"},U:{m:"min",h:"hrs",d:"days"}},
  ar:{title:"مرصد الاستخبارات الإماراتي",kicker:"الاستخبارات الأمنية والسياسية",live:"مباشر",
@@ -1004,10 +1064,11 @@ const T={en:{title:"UAE Intelligence Monitor",kicker:"Security & Political Intel
  foot:"مرصد الاستخبارات الإماراتي — تجميع تقارير علنية",foot2:"تحديث تلقائي كل دقيقتين",
  loading:"جارٍ التحميل…",empty:"لا توجد مواد مطابقة.",search:"ابحث في العناوين والمصادر والمواضيع…",
  outlets:n=>`${n} مصدر`,showing:n=>`${n} معروض`,
- C:{all:"الكل",critical:"حساسة",social:"تواصل اجتماعي",security:"الأمن",political:"السياسة",defense:"الدفاع",diplomacy:"الدبلوماسية",economy:"الاقتصاد",environment:"جرائم بيئية",childsafety:"جرائم الأطفال والاعتداءات",general:"عام"},
+ xonly:"الحصري فقط",xcl:"حصري",royal:"رسمي",dupes:n=>n===1?"نقله مصدر آخر":n===2?"نقلته وكالتان أخريان":n<=10?`نقلته ${n} مصادر أخرى`:`نقلته ${n} مصدراً آخر`,
+ C:{all:"الكل",critical:"حساسة",positive:"إيجابية ورسمية",social:"تواصل اجتماعي",security:"الأمن",political:"السياسة",defense:"الدفاع",diplomacy:"الدبلوماسية",economy:"الاقتصاد",environment:"جرائم بيئية",childsafety:"جرائم الأطفال والاعتداءات",general:"عام"},
  R:{all:"الكل",uae:"الإمارات",me:"الشرق الأوسط",am:"الأمريكتان",eu:"أوروبا",as:"آسيا",af:"أفريقيا",oc:"أستراليا والمحيط الهادئ",gl:"عالمي"},
  ago:{s:" ث",m:" د",h:" س",d:" ي"},U:{m:"دقيقة",h:"ساعة",d:"يوم"}}};
-let L="en",ALL=[],cat="all",reg="all";
+let L="en",ALL=[],cat="all",reg="all",XONLY=false;
 const t=k=>T[L][k];
 
 /* translation cache for Arabic headlines */
@@ -1022,16 +1083,18 @@ function stamp(ts){const s=Math.floor((Date.now()-ts)/1000),u=t("U");
  if(s<3600)return[(s/60|0)||1,u.m];if(s<86400)return[(s/3600|0)||1,u.h];return[(s/86400|0),u.d];}
 
 /* ---------- controls ---------- */
-const CATS=["all","critical","social","security","political","defense","diplomacy","economy","environment","childsafety"];
+const CATS=["all","critical","positive","social","security","political","defense","diplomacy","economy","environment","childsafety"];
 const REGS=["all","uae","me","am","eu","as","af","oc","gl"];
 function chips(){
- $("cats").innerHTML=CATS.map(k=>`<button data-c="${k}" class="${k==="critical"?"crit ":k==="environment"?"env ":k==="childsafety"?"kid ":""}${k===cat?"on":""}">${t("C")[k]}</button>`).join("");
+ $("cats").innerHTML=CATS.map(k=>`<button data-c="${k}" class="${k==="critical"?"crit ":k==="positive"?"pos ":k==="environment"?"env ":k==="childsafety"?"kid ":""}${k===cat?"on":""}">${t("C")[k]}</button>`).join("");
  [...$("regs").querySelectorAll("button")].forEach(b=>b.remove());
  $("regs").insertAdjacentHTML("beforeend",REGS.map(k=>`<button data-r="${k}" class="${k===reg?"on":""}">${t("R")[k]}</button>`).join(""));
 }
 $("cats").onclick=e=>{const b=e.target.closest("button");if(!b)return;cat=b.dataset.c;chips();draw();};
 $("regs").onclick=e=>{const b=e.target.closest("button");if(!b)return;reg=b.dataset.r;chips();draw();};
 $("q").addEventListener("input",draw);
+$("xtog").addEventListener("click",()=>{XONLY=!XONLY;
+ $("xtog").setAttribute("aria-pressed",XONLY?"true":"false");draw();stats();});
 $("refresh").onclick=load;
 $("critbtn").onclick=()=>{cat="critical";chips();draw();document.querySelector(".cols").scrollIntoView({behavior:"smooth"});};
 
@@ -1066,14 +1129,27 @@ async function load(){
    if(su&&nm(su).startsWith(nm(ti).slice(0,40)))su="";
    const tx=ti+" "+su;
    const cs=cats(tx);
-   if(cs.length===1&&cs[0]==="general")return null;   // no topic signal at all
-   if(isNoise(tx,cs))return null;                     // consumer / lifestyle copy
+   const isRoyal=!!i.royal||(social&&ROYAL_RX.test(so));
+   if(!isRoyal){
+     if(cs.length===1&&cs[0]==="general")return null; // no topic signal at all
+     if(isNoise(tx,cs))return null;                   // consumer / lifestyle copy
+   }
+   const royal=!!i.royal||(social&&ROYAL_RX.test(so));
+   // The account vouches for the item, so it enters the positive/official tab
+   // even when its wording carries no positive keyword.
+   if(royal&&!cs.includes("positive")&&!cs.includes("critical"))cs.unshift("positive");
+   if(cs.length>1){const g=cs.indexOf("general");if(g>-1)cs.splice(g,1);}
    if(social)cs.push("social");
+   // A post pulled by a region-targeted query belongs to that region even when its
+   // own wording names somewhere else; a news item is placed by its text first,
+   // with the outlet's home region only as a fallback.
    let rg=regOf(tx);
-   if(rg==="gl"&&i.srcRegion)rg=i.srcRegion;      // fall back to the outlet's home region
-   return{title:ti,summary:su,url:i.url||"#",source:so,social,plat,ts:i.ts||Date.now(),
+   if(social&&i.srcRegion)rg=i.srcRegion;
+   else if(rg==="gl"&&i.srcRegion)rg=i.srcRegion;
+   return{title:ti,summary:su,url:i.url||"#",source:so,social,plat,royal,ts:i.ts||Date.now(),
     cats:cs,region:rg,id:i.id||(i.url||ti).slice(0,120)};
   }).filter(Boolean).sort((a,b)=>b.ts-a.ts);
+  ALL=cluster(ALL);
   $("warn").style.display="none";
  }catch(e){
   if(!ALL.length){$("warn").style.display="block";
@@ -1084,9 +1160,70 @@ async function load(){
  stats();draw();fillTicker();MC=paintMap();
 }
 
+/* ---------- exclusivity ----------
+   Wire copy travels: one story shows up under a dozen bylines within the hour.
+   So we fold near-identical headlines into a single entry, show it once with a
+   count of who else carried it, and reserve the "exclusive" badge for a story
+   that exactly one accredited outlet has — nobody else in the window. */
+const TIER1=["reuters","associated press","ap news","afp","bloomberg","financial times",
+ "wall street journal","wsj","new york times","nyt","washington post","bbc","the guardian",
+ "guardian","al jazeera","sky news","cnn","economist","wam","emirates news agency","the national",
+ "gulf news","khaleej times","politico","foreign policy","defense news","janes","nikkei","scmp"];
+const isTier1=s=>{const l=(s||"").toLowerCase();return TIER1.some(k=>l.includes(k));};
+
+const STOP=new Set(("the a an and or of in on at to for from by with as is are was were be been"
+ +" its it his her their this that these those after before over under amid says say said new"
+ +" report reports amid about against into more than up down out off").split(" "));
+
+// The significant words of a headline, as a set.
+function fp(title){
+ return new Set((title||"").toLowerCase()
+   .replace(/[^\p{L}\p{N}\s]/gu," ")
+   .split(/\s+/).filter(x=>x.length>2&&!STOP.has(x)));
+}
+// Overlap ratio against the shorter headline — rewrites drop and add words, so
+// measuring against the smaller set is more forgiving than plain Jaccard.
+function sim(a,b){
+ if(!a.size||!b.size)return 0;
+ let n=0;for(const w of a) if(b.has(w))n++;
+ return n/Math.min(a.size,b.size);
+}
+const SIM_MIN=0.62;   // two headlines this close are treated as the same story
+
+function cluster(list){
+ const reps=[];                              // representatives, each with a word set
+ const index=new Map();                      // word -> indices of reps containing it
+ for(const a of list){                       // list is already newest-first
+  const set=fp(a.title);
+  // Only compare against representatives that share at least one significant word.
+  const cand=new Set();
+  for(const w of set) for(const i of (index.get(w)||[])) cand.add(i);
+  let hit=-1;
+  for(const i of cand) if(sim(set,reps[i]._set)>=SIM_MIN){hit=i;break;}
+
+  if(hit<0){
+   a._set=set;a._dupes=0;a._srcs=[a.source];
+   const i=reps.push(a)-1;
+   for(const w of set){const l=index.get(w);l?l.push(i):index.set(w,[i]);}
+   continue;
+  }
+  const cur=reps[hit];
+  cur._dupes++;
+  if(!cur._srcs.includes(a.source))cur._srcs.push(a.source);
+  // A tier-1 byline wins the slot; between equals, whoever broke it first.
+  const bothSameTier=isTier1(a.source)===isTier1(cur.source);
+  if((isTier1(a.source)&&!isTier1(cur.source))||(bothSameTier&&a.ts<cur.ts)){
+   a._set=cur._set;a._dupes=cur._dupes;a._srcs=cur._srcs;reps[hit]=a;
+  }
+ }
+ for(const a of reps) a._xcl = a._dupes===0 && !a.social && isTier1(a.source);
+ return reps.sort((a,b)=>b.ts-a.ts);
+}
+
 function filtered(){
  const q=$("q").value.trim().toLowerCase();
  return ALL.filter(a=>
+  (!XONLY||a._xcl)&&
   (cat==="all" ? !a.cats.includes("general") : a.cats.includes(cat))&&
   (reg==="all"||a.region===reg)&&
   (!q||(a.title+" "+a.summary+" "+a.source).toLowerCase().includes(q)));
@@ -1114,10 +1251,10 @@ function stats(){
  if(cr>0){$("critbar").style.display="flex";num($("critn"),cr);}else $("critbar").style.display="none";
 
  /* theme bars */
- const keys=["security","political","diplomacy","defense","economy","environment","childsafety","social","critical"];
+ const keys=["security","political","diplomacy","defense","economy","environment","childsafety","social","critical","positive"];
  const counts=keys.map(k=>({k,n:ALL.filter(a=>a.cats.includes(k)).length})).sort((a,b)=>b.n-a.n);
  const mx=Math.max(1,...counts.map(c=>c.n));
- $("catbars").innerHTML=counts.map(c=>`<div class="bar act ${c.k==="critical"?"c":c.k==="environment"?"e":c.k==="childsafety"?"k":""}" data-cat="${c.k}" role="button" tabindex="0">
+ $("catbars").innerHTML=counts.map(c=>`<div class="bar act ${c.k==="critical"?"c":c.k==="positive"?"p":c.k==="environment"?"e":c.k==="childsafety"?"k":""}" data-cat="${c.k}" role="button" tabindex="0">
    <span class="bl">${t("C")[c.k]}</span><span class="bv">${c.n}</span>
    <span class="btr"><span class="bf" data-w="${Math.round(c.n/mx*100)}"></span></span></div>`).join("");
 
@@ -1168,14 +1305,14 @@ function draw(){
   $("hero").innerHTML=`
    <article class="lead">
      <span class="kicker">${a.cats.includes("critical")?t("C").critical:t("C")[a.cats[0]]||""} · ${t("R")[a.region]}</span>
-     <div class="byline"><span class="src">${esc(a.source)}</span><span class="sep">•</span><span>${ago(a.ts)}</span></div>
+     <div class="byline"><span class="src">${esc(a.source)}</span>${a.royal?`<span class="crown"><svg viewBox="0 0 24 24"><path d="M3 8l4 4 5-7 5 7 4-4v10H3z"/></svg>${t("royal")}</span>`:""}${a._xcl?`<span class="xcl">${t("xcl")}</span>`:""}${a._dupes?`<span class="dupe">${t("dupes")(a._dupes)}</span>`:""}<span class="sep">•</span><span>${ago(a.ts)}</span></div>
      <h3 class="serif"><a href="${esc(a.url)}" target="_blank" rel="noopener" id="h0">${esc(a.title)}</a></h3>
      ${a.summary?`<p id="hp0">${esc(a.summary)}</p>`:""}
    </article>
    <div class="hero-side">
      ${h.slice(1).map((b,i)=>`<div class="mini">
        <span class="kicker">${t("R")[b.region]}</span>
-       <div class="byline"><span class="src">${esc(b.source)}</span><span class="sep">•</span><span>${ago(b.ts)}</span></div>
+       <div class="byline"><span class="src">${esc(b.source)}</span>${b.royal?`<span class="crown"><svg viewBox="0 0 24 24"><path d="M3 8l4 4 5-7 5 7 4-4v10H3z"/></svg>${t("royal")}</span>`:""}${b._xcl?`<span class="xcl">${t("xcl")}</span>`:""}${b._dupes?`<span class="dupe">${t("dupes")(b._dupes)}</span>`:""}<span class="sep">•</span><span>${ago(b.ts)}</span></div>
        <h4 class="serif"><a href="${esc(b.url)}" target="_blank" rel="noopener" id="h${i+1}">${esc(b.title)}</a></h4>
      </div>`).join("")}
    </div>`;
@@ -1186,7 +1323,7 @@ function draw(){
  if(!rest.length&&!h.length){$("stream").innerHTML=`<div class="empty">${t("empty")}</div>`;}
  else{
   $("stream").innerHTML=rest.map((a,i)=>{const s=stamp(a.ts);
-   return`<article class="item ${a.cats.includes("critical")?"crit":""} ${a.social?"social":""} ${a._new?"fresh":""}" style="animation-delay:${Math.min(i*.03,.5)}s">
+   return`<article class="item ${a.cats.includes("critical")?"crit":a.cats.includes("positive")?"pos":""} ${a.social?"social":""} ${a._new?"fresh":""}" style="animation-delay:${Math.min(i*.03,.5)}s">
     <div class="stamp"><div class="n">${s[0]}</div><div class="u">${s[1]}</div></div>
     <div>
       <div class="meta top">
@@ -1194,6 +1331,9 @@ function draw(){
         ${a.cats.filter(c=>c!=="social").slice(0,2).map(c=>`<span class="tg ${c}">${t("C")[c]||c}</span>`).join("")}
         <span class="tg rg ${a.region}">${t("R")[a.region]}</span>
         <span class="src">${esc(a.source)}</span>
+        ${a.royal?`<span class="crown"><svg viewBox="0 0 24 24"><path d="M3 8l4 4 5-7 5 7 4-4v10H3z"/></svg>${t("royal")}</span>`:""}
+        ${a._xcl?`<span class="xcl">${t("xcl")}</span>`:""}
+        ${a._dupes?`<span class="dupe" title="${esc((a._srcs||[]).slice(1,8).join(" · "))}">${t("dupes")(a._dupes)}</span>`:""}
         <span class="tm">${ago(a.ts)}</span>
       </div>
       <h4><a href="${esc(a.url)}" target="_blank" rel="noopener" id="s${i}">${esc(a.title)}</a></h4>
@@ -1617,7 +1757,7 @@ function buildReport(){
   const outs={};list.forEach(a=>{if(a.source)outs[a.source]=(outs[a.source]||0)+1});
   const topOut=Object.entries(outs).sort((a,b)=>b[1]-a[1]).slice(0,8);
   const omax=Math.max(1,...topOut.map(o=>o[1]));
-  const themes=["security","political","diplomacy","defense","economy","environment","childsafety","social","critical"]
+  const themes=["security","political","diplomacy","defense","economy","environment","childsafety","social","critical","positive"]
     .map(k=>({k,n:list.filter(a=>a.cats.includes(k)).length})).filter(x=>x.n).sort((a,b)=>b.n-a.n);
   const tmax=Math.max(1,...themes.map(t=>t.n));
   const regs=["uae","me","am","eu","as","af","oc","gl"]

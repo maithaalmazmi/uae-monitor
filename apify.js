@@ -9,25 +9,41 @@
 // ---------------------------------------------------------------------------
 import crypto from "node:crypto";
 import {
-  APIFY_TOKEN, APIFY_MAX_ITEMS, APIFY_PLATFORMS,
-  APIFY_X_QUERIES, APIFY_HASHTAGS, APIFY_FB_PAGES, KEYWORDS
+  APIFY_TOKEN, APIFY_MAX_ITEMS, APIFY_LIMITS, APIFY_PLATFORMS,
+  APIFY_X_QUERIES, APIFY_X_ROYALS, APIFY_X_REGIONS,
+  APIFY_HASHTAGS, APIFY_FB_PAGES, KEYWORDS
 } from "./config.js";
 
+const lim = (k) => APIFY_LIMITS?.[k] ?? APIFY_MAX_ITEMS;
 const hash = (s) => crypto.createHash("sha1").update(String(s)).digest("hex").slice(0, 16);
 
-// Same topic filter used by the news collectors.
+// Same topic filter used by the news collectors — kept in step with them so a
+// post about environmental crime or child safety is not thrown away by a gate
+// that only knows about security and politics.
+const has = (t, list) => list.some((k) => t.includes(k));
+const T_SEC = ["security","military","defense","defence","attack","missile","drone","terror",
+  "cyber","intelligence","conflict","war","troops","airstrike","navy","border","espionage",
+  "smuggling","militia","hostage","piracy"];
+const T_POL = ["diplomat","minister","president","summit","treaty","election","parliament",
+  "foreign policy","embassy","government","policy","alliance","ambassador","sheikh","ruler"];
+const T_ECO = ["sanction","embargo","tariff","trade","economy","economic","investment","fund",
+  "laundering","fatf","grey list","corruption","bribery","export control","oil","opec"];
+const T_ENV = ["environmental crime","pollution","toxic waste","hazardous waste","oil spill",
+  "wildlife trafficking","poaching","endangered","illegal fishing","illegal logging",
+  "deforestation","illegal dumping","illegal mining","contamination","ecological","climate"];
+const T_KID = ["child abuse","child exploitation","child trafficking","child labour","child labor",
+  "child protection","children","minors","underage","abduction","kidnapping","human trafficking",
+  "sexual assault","grooming","child soldiers","school violence"];
+
 function classify(text) {
   const t = (text || "").toLowerCase();
   if (!KEYWORDS.some((k) => t.includes(k))) return null;
-  const security = ["security","military","defense","defence","attack","missile","drone",
-    "terror","cyber","intelligence","conflict","war","troops","airstrike","navy","border"]
-    .some((k) => t.includes(k));
-  const political = ["diplomat","minister","president","summit","treaty","election",
-    "parliament","foreign policy","embassy","government","policy","sanction","alliance"]
-    .some((k) => t.includes(k));
   const topics = [];
-  if (security) topics.push("security");
-  if (political) topics.push("political");
+  if (has(t, T_SEC)) topics.push("security");
+  if (has(t, T_POL)) topics.push("political");
+  if (has(t, T_ECO)) topics.push("economy");
+  if (has(t, T_ENV)) topics.push("environment");
+  if (has(t, T_KID)) topics.push("childsafety");
   return topics.length ? topics : ["general"];
 }
 
@@ -59,7 +75,7 @@ async function runActor(actor, input, label) {
 async function fetchX() {
   const raw = await runActor("apidojo~tweet-scraper", {
     searchTerms: APIFY_X_QUERIES,
-    maxItems: APIFY_MAX_ITEMS,
+    maxItems: lim("x"),
     sort: "Latest",
     tweetLanguage: "en"
   }, "x");
@@ -75,13 +91,64 @@ async function fetchX() {
   });
 }
 
+// ------------------------------------------------- X: ruling families
+// The handle is the filter, so these bypass the keyword gate entirely and are
+// flagged royal:true for the positive/official tab.
+async function fetchXRoyals() {
+  if (!APIFY_X_ROYALS.length) return [];
+  const byHandle = new Map(APIFY_X_ROYALS.map((r) => [r.handle.toLowerCase(), r]));
+  const raw = await runActor("apidojo~tweet-scraper", {
+    searchTerms: APIFY_X_ROYALS.map((r) => `from:${r.handle}`),
+    maxItems: lim("xroyal"),
+    sort: "Latest"
+  }, "x-royal");
+
+  return raw.map((p) => {
+    const text = pick(p, ["text", "full_text", "content"]);
+    const user = String(pick(p, ["author.userName", "author.username", "user.username", "username"], ""));
+    const who  = byHandle.get(user.toLowerCase());
+    const url  = pick(p, ["url", "twitterUrl", "tweetUrl"],
+                  `https://x.com/${user}/status/${pick(p, ["id", "id_str"], "")}`);
+    const when = pick(p, ["createdAt", "created_at", "date"]);
+    return { text, author: `X · ${who ? who.name : "@" + user}`, url,
+             ts: when ? Date.parse(when) : Date.now(),
+             source: "x", plat: "x", royal: true, srcRegion: who ? who.region : "gl" };
+  }).filter((i) => i.text);
+}
+
+// -------------------------------- X: political & economic, routed by region
+async function fetchXRegions() {
+  if (!APIFY_X_REGIONS.length) return [];
+  const per = Math.max(3, Math.floor(lim("xregion") / APIFY_X_REGIONS.length));
+  const runs = await Promise.all(APIFY_X_REGIONS.map(async (r) => {
+    try {
+      const raw = await runActor("apidojo~tweet-scraper", {
+        searchTerms: [r.query], maxItems: per, sort: "Latest"
+      }, `x-${r.region}`);
+      return raw.map((p) => {
+        const text = pick(p, ["text", "full_text", "content"]);
+        const user = pick(p, ["author.userName", "author.username", "user.username", "username"], "user");
+        const url  = pick(p, ["url", "twitterUrl", "tweetUrl"],
+                      `https://x.com/${user}/status/${pick(p, ["id", "id_str"], "")}`);
+        const when = pick(p, ["createdAt", "created_at", "date"]);
+        return { text, author: `X · @${user}`, url, ts: when ? Date.parse(when) : Date.now(),
+                 source: "x", plat: "x", srcRegion: r.region };
+      });
+    } catch (err) {
+      console.warn(`[Apify:x-${r.region}] failed: ${err.message}`);
+      return [];
+    }
+  }));
+  return runs.flat();
+}
+
 // ---------------------------------------------------------------- Instagram
 async function fetchInstagram() {
   const raw = await runActor("apify~instagram-scraper", {
     search: APIFY_HASHTAGS[0],
     searchType: "hashtag",
     resultsType: "posts",
-    resultsLimit: APIFY_MAX_ITEMS,
+    resultsLimit: lim("instagram"),
     addParentData: false
   }, "instagram");
 
@@ -99,7 +166,7 @@ async function fetchInstagram() {
 async function fetchTikTok() {
   const raw = await runActor("clockworks~tiktok-scraper", {
     hashtags: APIFY_HASHTAGS,
-    resultsPerPage: APIFY_MAX_ITEMS,
+    resultsPerPage: lim("tiktok"),
     shouldDownloadVideos: false,
     shouldDownloadCovers: false
   }, "tiktok");
@@ -119,7 +186,7 @@ async function fetchFacebook() {
   if (!APIFY_FB_PAGES.length) return [];
   const raw = await runActor("apify~facebook-posts-scraper", {
     startUrls: APIFY_FB_PAGES.map((u) => ({ url: u })),
-    resultsLimit: APIFY_MAX_ITEMS
+    resultsLimit: lim("facebook")
   }, "facebook");
 
   return raw.map((p) => {
@@ -138,6 +205,8 @@ export async function collectApify() {
 
   const jobs = [];
   if (APIFY_PLATFORMS.x)         jobs.push(["x", fetchX]);
+  if (APIFY_PLATFORMS.x)         jobs.push(["x-royal", fetchXRoyals]);
+  if (APIFY_PLATFORMS.x)         jobs.push(["x-region", fetchXRegions]);
   if (APIFY_PLATFORMS.instagram) jobs.push(["instagram", fetchInstagram]);
   if (APIFY_PLATFORMS.tiktok)    jobs.push(["tiktok", fetchTikTok]);
   if (APIFY_PLATFORMS.facebook)  jobs.push(["facebook", fetchFacebook]);
@@ -153,7 +222,8 @@ export async function collectApify() {
 
   const out = [];
   for (const item of results.flat()) {
-    const topics = classify(item.text);
+    // A ruling-family account is its own credential: keep everything it posts.
+    const topics = item.royal ? ["official"] : classify(item.text);
     if (!topics) continue;                 // keep only UAE / security / political matter
     out.push({
       id: hash(`apify_${item.url}_${item.text.slice(0, 60)}`),
@@ -164,7 +234,9 @@ export async function collectApify() {
       summary: (item.text || "").slice(0, 300),
       url: item.url,
       ts: Number.isFinite(item.ts) ? item.ts : Date.now(),
-      topics
+      topics,
+      royal: !!item.royal,
+      srcRegion: item.srcRegion || undefined
     });
   }
   console.log(`[Apify] kept ${out.length} relevant items`);
