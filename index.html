@@ -379,6 +379,38 @@ a{color:inherit}
   font-weight:700;padding:8px 15px;border-radius:8px;cursor:pointer;color:#16150f}
 .rpt-top button.pri{background:var(--accent);color:#fff;border-color:var(--accent)}
 .rpt-body{padding:30px 40px 40px}
+/* ---- archive ---- */
+.rpt.arc{max-width:960px}
+.arc-body{padding:18px 26px 26px}
+.arc-form{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.arc-form input[type=search],.arc-form select{font:inherit;font-size:13px;padding:8px 11px;
+  border:1px solid var(--line2);border-radius:8px;background:#fff;color:var(--ink);min-height:38px}
+.arc-form input[type=search]{flex:1 1 240px}
+.arc-form .dt{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;
+  color:var(--ink3);text-transform:uppercase;letter-spacing:.6px}
+.arc-form .dt input{font:inherit;font-size:12.5px;padding:7px 9px;border:1px solid var(--line2);
+  border-radius:8px;background:#fff;color:var(--ink);min-height:38px}
+.arc-form button{border:1px solid var(--accent);background:var(--accent);color:#fff;font:inherit;
+  font-size:12.5px;font-weight:700;padding:9px 18px;border-radius:8px;cursor:pointer;min-height:38px}
+.arc-form button:focus-visible,.arc-form input:focus-visible,.arc-form select:focus-visible{
+  outline:2px solid var(--color-ring);outline-offset:2px}
+/* daily volume, drawn as plain divs so it needs no chart library */
+.arc-chart{display:flex;align-items:flex-end;gap:3px;height:96px;padding:10px 0 0;
+  border-bottom:1px solid var(--line);margin-bottom:6px}
+.arc-chart .d{flex:1;min-width:3px;background:linear-gradient(180deg,#5B95E3,var(--data));
+  border-radius:3px 3px 0 0;position:relative;transition:opacity .15s}
+.arc-chart .d:hover{opacity:.75}
+.arc-chart .d.zero{background:var(--line2);min-height:2px}
+.arc-note{font-size:11.5px;color:var(--ink3);margin-bottom:14px;letter-spacing:.2px}
+.arc-list{max-height:44vh;overflow:auto}
+.arc-row{padding:11px 2px;border-bottom:1px solid var(--line)}
+.arc-row:last-child{border-bottom:0}
+.arc-row .m{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px}
+.arc-row .dt{font-size:11px;font-weight:700;color:var(--ink3);font-variant-numeric:tabular-nums}
+.arc-row .sr{font-size:11.5px;font-weight:700;color:var(--data)}
+.arc-row a{font-size:14px;font-weight:600;color:var(--ink);text-decoration:none;line-height:1.45}
+.arc-row a:hover{text-decoration:underline}
+.arc-empty{padding:34px 10px;text-align:center;color:var(--ink3);font-size:13px}
 .rpt h1{font-family:Fraunces,serif;font-size:29px;font-weight:900;margin:0 0 4px;letter-spacing:-.5px}
 .rpt .meta{font-size:12px;color:#6b645a;margin-bottom:22px;padding-bottom:16px;border-bottom:3px double #16150f}
 .rpt h2{font-size:11.5px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;
@@ -770,6 +802,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,
         <circle class="fg" cx="15" cy="15" r="12.5" stroke-dashoffset="0"/></svg><b id="ringn">120</b>
       </span>
       <button class="pill" id="lang">العربية</button>
+      <button class="pill" id="archbtn" data-i="archBtn">Archive</button>
       <button class="pill" id="report" data-i="reportBtn">Report</button>
       <button class="pill" id="refresh"><span data-i="refresh">Refresh</span></button>
     </div>
@@ -937,6 +970,26 @@ a:focus-visible,button:focus-visible,input:focus-visible,
     <div class="rpt-body" id="rptbody"></div>
   </div>
 </div>
+<div class="rpt-bd" id="arcbd">
+  <div class="rpt arc">
+    <div class="rpt-top">
+      <h3 data-i="arcTitle">Archive</h3>
+      <div class="sp"><button id="arcclose" data-i="reportClose">Close</button></div>
+    </div>
+    <div class="arc-body">
+      <div class="arc-form">
+        <input id="arcq" type="search" placeholder="Search the archive…" />
+        <select id="arctopic"></select>
+        <label class="dt"><span data-i="arcFrom">From</span><input id="arcfrom" type="date" /></label>
+        <label class="dt"><span data-i="arcTo">To</span><input id="arcto" type="date" /></label>
+        <button class="pri" id="arcgo" data-i="arcSearch">Search</button>
+      </div>
+      <div class="arc-chart" id="arcchart"></div>
+      <div class="arc-note" id="arcnote"></div>
+      <div class="arc-list" id="arclist"></div>
+    </div>
+  </div>
+</div>
 <div class="tip" id="tip"></div>
 
 <script>
@@ -963,11 +1016,7 @@ const RULES={
    "laundering","asset freeze","illicit finance","financial crime","export control","divest",
    "sovereign wealth","opec","energy security","trade war","economic pressure","corruption",
    "bribery","currency"],
- environment:["environmental crime","pollution","polluting","illegal dumping","toxic waste",
-   "hazardous waste","oil spill","wildlife trafficking","poaching","ivory","endangered species",
-   "illegal fishing","overfishing","deforestation","illegal logging","emissions violation",
-   "environmental damage","ecological","contaminat","waste dumping","illegal mining",
-   "chemical spill","water pollution","air pollution"],
+ environment:[],   /* handled by envClass() below — see the note there */
  childsafety:[
    /* abuse and assault */
    "child abuse","child abuse","abuse of a child","child cruelty","child neglect",
@@ -1033,9 +1082,171 @@ const REG={uae:UAE_T,
  as:["china","india","japan","korea","pakistan","asia","beijing","taiwan"],
  af:["africa","egypt","sudan","nigeria","ethiopia","libya","somalia"],
  oc:["australia","new zealand","pacific"]};
+/* ---------- environmental CRIME, by the internationally used categories ----------
+   The old list matched any environmental word, so an air-quality index page
+   ("Air Quality Index (AQI) and Croatia Air Pollution | IQAir") counted as a
+   crime. Pollution is a condition; polluting unlawfully is the crime.
+
+   So the vocabulary is split in three:
+     HARD  — phrases that are criminal on their own ("wildlife trafficking")
+     SOFT  — the domain, innocent by itself ("pollution", "emissions")
+     CRIME — enforcement or illegality ("illegal", "arrested", "fined", "seized")
+   A SOFT term only counts when a CRIME term appears with it. BLOCK kills the
+   data-and-forecast pages outright, since those carry both by coincidence. */
+const ENV_BLOCK = ["air quality index","(aqi)","aqi and","air quality map","pollution ranking",
+  "weather forecast","pollen count","uv index","real-time air","live air quality",
+  "most polluted cities ranking"];
+
+/* Climate and environment DIPLOMACY — COP summits, treaties, pledges, finance.
+   Not crime, but the UAE hosted COP28 and its climate positioning is watched
+   closely, so it earns its own labelled sub-category instead of being dropped
+   with the air-quality pages or mislabelled as an offence. */
+const ENV_POLICY = ["cop28","cop29","cop30","cop 28","cop 29","cop 30","climate summit",
+  "climate conference","climate talks","climate negotiations","unfccc","paris agreement",
+  "climate finance","loss and damage","emissions target","net zero pledge","carbon market",
+  "carbon credit","ipcc report","biodiversity cop","cites conference","unea","green transition",
+  "climate pledge","climate accord","environment ministers","climate deal",
+  "قمة المناخ","مؤتمر المناخ","مؤتمر الأطراف","اتفاق باريس","تمويل المناخ",
+  "الخسائر والأضرار","الحياد الكربوني","أسواق الكربون","مفاوضات المناخ","اتفاق مناخي"];
+
+const ENV_CRIME = ["illegal","illicit","unlawful","banned","prohibited","smuggl","traffick",
+  "arrest","detain","convict","sentenc","jailed","prosecut","indict","charged with","fined",
+  "fine of","penalty","seiz","confiscat","raid","crackdown","court","lawsuit","sued",
+  "violation","breach","offence","offense","crime","criminal","scandal","probe","investigation",
+  "negligence","cover-up","falsif","fraud","bribe","corrupt","dumping","poach","unreported",
+  "unregulated","black market","syndicate","cartel","network","gang",
+  /* Arabic */ "غير قانوني","غير مشروع","مهرب","تهريب","اعتقال","إدانة","محكمة","غرامة",
+  "مصادرة","مداهمة","جريمة","انتهاك","مخالفة","فساد","تلاعب","إهمال"];
+
+const ENV_CATS = {
+  // 1. Wildlife crimes
+  wildlife: {
+    hard: ["wildlife trafficking","wildlife crime","wildlife smuggling","illegal wildlife trade",
+      "poaching","poacher","ivory trade","rhino horn","pangolin scale","shark finning",
+      "illegal pet trade","bushmeat","cites violation","endangered species trade",
+      "الاتجار بالحياة البرية","الصيد الجائر","تهريب الحيوانات","العاج"],
+    soft: ["wildlife","endangered species","protected species","falcon","rhino","elephant",
+      "pangolin","tiger","turtle","الحياة البرية","الأنواع المهددة"]
+  },
+  // 2. Pollution and waste crimes
+  pollution: {
+    hard: ["illegal dumping","waste dumping","toxic waste","hazardous waste","waste trafficking",
+      "e-waste dumping","illegal discharge","emissions cheating","emissions fraud",
+      "dieselgate","illegal landfill","تهريب النفايات","النفايات السامة","دفن النفايات"],
+    soft: ["pollution","polluting","polluted","emissions","effluent","oil spill","chemical spill",
+      "contaminat","landfill","sewage","waste","التلوث","الانبعاثات","تسرب نفطي","النفايات"]
+  },
+  // 3. Forestry crimes
+  forestry: {
+    hard: ["illegal logging","timber trafficking","timber smuggling","illegal deforestation",
+      "illegal land clearing","land grabbing","forest crime","قطع الأشجار غير القانوني",
+      "تهريب الأخشاب","إزالة الغابات"],
+    soft: ["logging","timber","deforestation","forest","rainforest","الغابات","الأخشاب"]
+  },
+  // 4. Fisheries crimes
+  fisheries: {
+    hard: ["illegal fishing","iuu fishing","illegal, unreported","overfishing violation",
+      "fishing without licence","fishing without license","trawler seized","fish smuggling",
+      "الصيد غير القانوني","الصيد الجائر للأسماك"],
+    soft: ["fishing","fishery","fisheries","trawler","fish stock","الصيد","الثروة السمكية"]
+  },
+  // 5. Illegal mining
+  mining: {
+    hard: ["illegal mining","illegal gold mining","illegal sand mining","unlicensed mining",
+      "mining without permit","blood gold","conflict minerals","التعدين غير القانوني",
+      "التنقيب غير المشروع","الذهب المهرب"],
+    soft: ["mining","quarry","gold mine","mercury","tailings","التعدين","المناجم"]
+  },
+  // 6. Transnational organised environmental crime
+  organized: {
+    hard: ["environmental crime network","transnational environmental crime","green crime",
+      "eco-trafficking","environmental crime syndicate","interpol environmental",
+      "unep environmental crime","الجريمة البيئية المنظمة","شبكة تهريب بيئية"],
+    soft: ["organised crime","organized crime","transnational","syndicate","cartel"]
+  },
+  // 7. Corporate environmental crime
+  corporate: {
+    hard: ["environmental violation","environmental fine","environmental lawsuit",
+      "pollution fine","epa fine","greenwashing lawsuit","corporate negligence",
+      "environmental negligence","spill liability","permit violation",
+      "مخالفة بيئية","غرامة بيئية","دعوى بيئية"],
+    soft: ["company","firm","corporation","refinery","plant","factory","operator",
+      "شركة","مصنع","مصفاة"]
+  },
+  // 8. Individual offences
+  individual: {
+    hard: ["illegal hunting","hunting without permit","littering fine","dumped waste illegally",
+      "caught dumping","wildlife smuggler arrested","صيد بدون ترخيص","رمي النفايات"],
+    soft: ["hunter","hunting","litter","dumped","الصيد","النفايات"]
+  }
+};
+
+// Returns the category key, or null when the text is not an environmental crime.
+function envClass(text) {
+  const t = (text || "").toLowerCase();
+  if (ENV_BLOCK.some((b) => t.includes(b))) return null;   // data pages, not crimes
+  const crime = ENV_CRIME.some((c) => t.includes(c));
+  // Diplomacy first: a COP story that also mentions an investigation should read
+  // as the summit it is, not as a crime report.
+  if (!crime && ENV_POLICY.some((p) => t.includes(p))) return "policy";
+  for (const [key, v] of Object.entries(ENV_CATS)) {
+    if (v.hard.some((h) => t.includes(h))) return key;      // criminal on its own
+    if (crime && v.soft.some((s) => t.includes(s))) return key;
+  }
+  return null;
+}
+
+/* Sensitive: hostile or damaging coverage of the UAE. Four existing axes
+   (reputation, political, economic, security) plus two the user named
+   explicitly: attacks aimed AT the UAE, and the Sudan file. */
+const NEG_ADD = [
+  /* --- attacks, smears and hostile campaigns aimed at the UAE --- */
+  "anti-uae","anti uae","against the uae","targeting the uae","smear campaign","smear",
+  "disinformation campaign","misinformation campaign","propaganda campaign","hostile campaign",
+  "media campaign against","defamation","defame","slander","libel","insult","insulted",
+  "mocked","ridicul","incitement","inciting","hate campaign","hashtag campaign","trolls",
+  "boycott the uae","boycott uae","calls to boycott","blamed the uae","blames uae",
+  "uae blamed","accuses the uae","accused the uae","uae accused","criticises the uae",
+  "criticizes the uae","condemns the uae","condemned the uae","denounces the uae",
+  "summoned the uae","expelled uae","protest against the uae","rally against the uae",
+  "campaign against the uae","attacks on the uae","attacked the uae",
+  "الإساءة للإمارات","إساءة إلى الإمارات","حملة ضد الإمارات","تشويه سمعة",
+  "تحريض على الإمارات","اتهام الإمارات","اتهمت الإمارات","تتهم الإمارات",
+  "إدانة الإمارات","انتقاد الإمارات","مقاطعة الإمارات","تشهير",
+
+  /* --- the Sudan file: named by the user, and the single most active
+         reputational front for the UAE at the moment --- */
+  "sudan","sudanese","khartoum","darfur","el fasher","al fashir","nyala","port sudan",
+  "rapid support forces","rsf","hemedti","hemeti","dagalo","janjaweed",
+  "sudanese armed forces","burhan","genocide in darfur","sudan war","sudan conflict",
+  "arms to sudan","weapons to sudan","arming the rsf","gold smuggling","sudanese gold",
+  "un panel of experts","icj case","international court of justice","icc",
+  "السودان","السوداني","الخرطوم","دارفور","الفاشر","نيالا","بورتسودان",
+  "الدعم السريع","حميدتي","دقلو","الجنجويد","الجيش السوداني","البرهان",
+  "حرب السودان","تسليح الدعم السريع","ذهب السودان","محكمة العدل الدولية"
+];
+
+/* "env:wildlife" and friends are sub-categories of environmental crime. They
+   ride along in the topic list so the archive and the database keep them, but
+   on screen the specific label replaces the generic "Environmental crime" —
+   a reader wants to know it was poaching, not merely that it was green. */
+function clabel(c){
+ if(c&&c.startsWith("env:"))return t("EV")[c.slice(4)]||t("C").environment;
+ return t("C")[c]||c;
+}
+function ccls(c){return c&&c.startsWith("env:")?"environment":c;}
+function showCats(list){
+ const sub=(list||[]).find(c=>c&&c.startsWith("env:"));
+ return (list||[]).filter(c=>c!=="social"&&c!=="general"&&!(sub&&c==="environment"));
+}
+
 function cats(t){t=t.toLowerCase();const o=[];
- for(const[k,w]of Object.entries(RULES))if(w.some(x=>t.includes(x)))o.push(k);
- const uae=UAE_T.some(x=>t.includes(x)),neg=NEG.some(x=>t.includes(x));
+ for(const[k,w]of Object.entries(RULES))if(w.length&&w.some(x=>t.includes(x)))o.push(k);
+ const ec=envClass(t);
+ if(ec){o.push("environment");o.push("env:"+ec);
+  // Climate diplomacy belongs in the diplomacy tab as much as the green one.
+  if(ec==="policy"&&!o.includes("diplomacy"))o.push("diplomacy");}
+ const uae=UAE_T.some(x=>t.includes(x)),neg=NEG.some(x=>t.includes(x))||NEG_ADD.some(x=>t.includes(x));
  if(uae&&neg)o.unshift("critical");
  // Positive only when nothing sensitive is in the same text — good news reported
  // inside a criticism piece is still a criticism piece.
@@ -1088,6 +1299,15 @@ const T={en:{title:"UAE Intelligence Monitor",kicker:"Security & Political Intel
  outlets:n=>`${n} outlets`,showing:n=>`${n} shown`,
  xonly:"Exclusive only",xcl:"Exclusive",royal:"Official",
  archOn:"Archive on",archOff:"Archive off",
+ EV:{policy:"Climate diplomacy",wildlife:"Wildlife crime",pollution:"Pollution & waste crime",forestry:"Forestry crime",
+     fisheries:"Fisheries crime",mining:"Illegal mining",organized:"Organised env. crime",
+     corporate:"Corporate env. crime",individual:"Individual offence"},
+ archBtn:"Archive",arcTitle:"Archive",arcFrom:"From",arcTo:"To",arcSearch:"Search",
+ arcPh:"Search the whole archive…",arcAll:"All topics",
+ arcNote:(n,d)=>`${n} items · daily volume over the last ${d} days`,
+ arcNone:"Nothing found in the archive for these filters.",
+ arcOff:"The archive needs the database. Connect PostgreSQL in Railway, then this fills up on its own.",
+ arcWait:"Searching…",
  archOnT:"Items are stored in the database and survive restarts and updates.",
  archOffT:"No database connected — every restart or update clears the items. Add PostgreSQL in Railway and set DATABASE_URL.",dupes:n=>n===1?"+1 outlet carried this":`+${n} outlets carried this`,
  C:{all:"All",critical:"Sensitive",positive:"Positive & official",social:"Social",security:"Security",political:"Political",defense:"Defence",diplomacy:"Diplomacy",economy:"Economy",environment:"Environmental crime",childsafety:"Child safety & assault",general:"General"},
@@ -1107,6 +1327,15 @@ const T={en:{title:"UAE Intelligence Monitor",kicker:"Security & Political Intel
  outlets:n=>`${n} مصدر`,showing:n=>`${n} معروض`,
  xonly:"الحصري فقط",xcl:"حصري",royal:"رسمي",
  archOn:"الأرشيف يعمل",archOff:"الأرشيف متوقف",
+ EV:{policy:"دبلوماسية مناخية",wildlife:"جرائم الحياة البرية",pollution:"جرائم التلوث والنفايات",forestry:"جرائم الغابات",
+     fisheries:"جرائم الثروة السمكية",mining:"التعدين غير القانوني",organized:"جريمة بيئية منظمة",
+     corporate:"جرائم الشركات",individual:"مخالفة فردية"},
+ archBtn:"الأرشيف",arcTitle:"الأرشيف",arcFrom:"من",arcTo:"إلى",arcSearch:"بحث",
+ arcPh:"ابحث في الأرشيف كاملاً…",arcAll:"كل المحاور",
+ arcNote:(n,d)=>`${n} مادة · الحجم اليومي خلال آخر ${d} يوماً`,
+ arcNone:"لا توجد مواد في الأرشيف بهذه المعايير.",
+ arcOff:"الأرشيف يحتاج قاعدة البيانات. اربطي PostgreSQL في Railway وسيمتلئ وحده.",
+ arcWait:"جارٍ البحث…",
  archOnT:"الأخبار محفوظة في قاعدة البيانات وتنجو من التحديث وإعادة التشغيل.",
  archOffT:"لا توجد قاعدة بيانات — كل تحديث أو إعادة تشغيل يمسح الأخبار. أضيفي PostgreSQL في Railway واربطي DATABASE_URL.",dupes:n=>n===1?"نقله مصدر آخر":n===2?"نقلته وكالتان أخريان":n<=10?`نقلته ${n} مصادر أخرى`:`نقلته ${n} مصدراً آخر`,
  C:{all:"الكل",critical:"حساسة",positive:"إيجابية ورسمية",social:"تواصل اجتماعي",security:"الأمن",political:"السياسة",defense:"الدفاع",diplomacy:"الدبلوماسية",economy:"الاقتصاد",environment:"جرائم بيئية",childsafety:"جرائم الأطفال والاعتداءات",general:"عام"},
@@ -1418,7 +1647,7 @@ function draw(){
   const a=h[0];
   $("hero").innerHTML=`
    <article class="lead">
-     <span class="kicker">${a.cats.includes("critical")?t("C").critical:t("C")[a.cats[0]]||""} · ${t("R")[a.region]}</span>
+     <span class="kicker">${a.cats.includes("critical")?t("C").critical:clabel(showCats(a.cats)[0])||""} · ${t("R")[a.region]}</span>
      <div class="byline"><span class="src">${esc(a.source)}</span>${a.royal?`<span class="crown"><svg viewBox="0 0 24 24"><path d="M3 8l4 4 5-7 5 7 4-4v10H3z"/></svg>${t("royal")}</span>`:""}${a._xcl?`<span class="xcl">${t("xcl")}</span>`:""}${a._dupes?`<span class="dupe">${t("dupes")(a._dupes)}</span>`:""}<span class="sep">•</span><span>${ago(a.ts)}</span></div>
      <h3 class="serif"><a href="${esc(a.url)}" target="_blank" rel="noopener" id="h0">${esc(a.title)}</a></h3>
      ${a.summary?`<p id="hp0">${esc(a.summary)}</p>`:""}
@@ -1442,7 +1671,7 @@ function draw(){
     <div>
       <div class="meta top">
         ${a.social?`<span class="plat ${a.plat}"><i></i>${esc(a.plat||"social")}</span>`:""}
-        ${a.cats.filter(c=>c!=="social").slice(0,2).map(c=>`<span class="tg ${c}">${t("C")[c]||c}</span>`).join("")}
+        ${showCats(a.cats).slice(0,2).map(c=>`<span class="tg ${ccls(c)}">${clabel(c)}</span>`).join("")}
         <span class="tg rg ${a.region}">${t("R")[a.region]}</span>
         <span class="src">${esc(a.source)}</span>
         ${a.royal?`<span class="crown"><svg viewBox="0 0 24 24"><path d="M3 8l4 4 5-7 5 7 4-4v10H3z"/></svg>${t("royal")}</span>`:""}
@@ -1860,6 +2089,90 @@ function bump(el){const k=el.closest(".kpi");if(!k)return;
 /* ================= REPORT ================= */
 function fmtDate(d){return d.toLocaleString(L==="ar"?"ar-AE":"en-GB",
   {weekday:"long",year:"numeric",month:"long",day:"numeric",hour:"2-digit",minute:"2-digit"});}
+
+/* ---------- archive ----------
+   The dashboard shows the live window; the archive shows everything ever
+   collected. It reads /api/archive and /api/history, which only return data
+   once the database is connected — so when it is not, this says so plainly
+   rather than looking broken. */
+const ARC_DAYS=30;
+
+function arcOpen(){
+ $("arcbd").classList.add("on");
+ $("arcq").placeholder=t("arcPh");
+ const sel=$("arctopic");
+ if(!sel.options.length){
+  sel.innerHTML=`<option value="">${t("arcAll")}</option>`+
+   CATS.filter(k=>k!=="all"&&k!=="social").map(k=>`<option value="${k}">${t("C")[k]}</option>`).join("");
+ }
+ if(ARCH===false){
+  $("arcchart").innerHTML="";$("arcnote").textContent="";
+  $("arclist").innerHTML=`<div class="arc-empty">${t("arcOff")}</div>`;
+  return;
+ }
+ arcHistory(); arcSearch();
+ setTimeout(()=>$("arcq").focus(),60);
+}
+function arcClose(){$("arcbd").classList.remove("on");}
+
+async function arcHistory(){
+ try{
+  const r=await fetch(`/api/history?days=${ARC_DAYS}`);
+  const {days}=await r.json();
+  if(!days||!days.length){$("arcchart").innerHTML="";return;}
+  // Fill in the days with no coverage, otherwise a gap reads as a busy day.
+  const by={};days.forEach(d=>by[d.day]=d.total);
+  const cells=[];const today=new Date();
+  for(let i=ARC_DAYS-1;i>=0;i--){
+   const dt=new Date(today.getTime()-i*86400000);
+   const key=dt.toISOString().slice(0,10);
+   cells.push([key,by[key]||0]);
+  }
+  const top=Math.max(1,...cells.map(c=>c[1]));
+  $("arcchart").innerHTML=cells.map(([k,v])=>
+    `<div class="d ${v?"":"zero"}" style="height:${v?Math.max(6,Math.round(v/top*86)):2}px" title="${k} — ${v}"></div>`).join("");
+ }catch(e){$("arcchart").innerHTML="";}
+}
+
+async function arcSearch(){
+ const list=$("arclist");
+ list.innerHTML=`<div class="arc-empty">${t("arcWait")}</div>`;
+ const p=new URLSearchParams();
+ const q=$("arcq").value.trim(); if(q)p.set("q",q);
+ const tp=$("arctopic").value;   if(tp)p.set("topic",tp);
+ const f=$("arcfrom").value;     if(f)p.set("from",f);
+ const to=$("arcto").value;      if(to)p.set("to",to+"T23:59:59");
+ p.set("limit","300");
+ try{
+  const r=await fetch("/api/archive?"+p.toString());
+  const {items}=await r.json();
+  $("arcnote").textContent=t("arcNote")((items||[]).length,ARC_DAYS);
+  if(!items||!items.length){list.innerHTML=`<div class="arc-empty">${t("arcNone")}</div>`;return;}
+  const fmt=ts=>new Date(ts).toLocaleDateString(L==="ar"?"ar-AE":[],{day:"2-digit",month:"short",year:"numeric"});
+  list.innerHTML=items.map(a=>{
+   let ti=(a.title||"").trim(),so=(a.author||"").trim();
+   const m=ti.match(/\s[-–—]\s([^-–—]{2,45})$/);
+   if(m){so=m[1].trim();ti=ti.slice(0,m.index).trim();}
+   if(!so){try{so=new URL(a.url).hostname.replace(/^www\./,"")}catch(e){so="—"}}
+   const tags=showCats(a.topics).slice(0,3)
+     .map(c=>`<span class="tg ${ccls(c)}">${clabel(c)}</span>`).join("");
+   return `<div class="arc-row"><div class="m">
+     <span class="dt">${fmt(a.ts)}</span>${tags}
+     ${a.royal?`<span class="crown"><svg viewBox="0 0 24 24"><path d="M3 8l4 4 5-7 5 7 4-4v10H3z"/></svg>${t("royal")}</span>`:""}
+     <span class="sr">${esc(so)}</span></div>
+     <a href="${esc(a.url||"#")}" target="_blank" rel="noopener">${esc(ti)}</a></div>`;
+  }).join("");
+ }catch(e){
+  list.innerHTML=`<div class="arc-empty">${t("arcOff")}</div>`;
+ }
+}
+
+$("archbtn").onclick=arcOpen;
+$("arcclose").onclick=arcClose;
+$("arcgo").onclick=arcSearch;
+$("arcq").addEventListener("keydown",e=>{if(e.key==="Enter")arcSearch();});
+$("arcbd").addEventListener("click",e=>{if(e.target===$("arcbd"))arcClose();});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")arcClose();});
 
 function buildReport(){
   const list=filtered();

@@ -41,10 +41,119 @@ const T_ECONOMIC = ["sanction","embargo","blacklist","grey list","greylist","fat
   "sovereign wealth","oil policy","opec","energy security","investment screening",
   "economic pressure","currency","financial crime","illicit finance"];
 
-const T_ENV = ["environmental crime","pollution","toxic waste","hazardous waste","oil spill",
-  "wildlife trafficking","poaching","endangered species","illegal fishing","illegal logging",
-  "deforestation","illegal dumping","illegal mining","contamination","ecological damage",
-  "emissions violation","chemical spill"];
+/* ---------- environmental CRIME, by the internationally used categories ----------
+   The old list matched any environmental word, so an air-quality index page
+   ("Air Quality Index (AQI) and Croatia Air Pollution | IQAir") counted as a
+   crime. Pollution is a condition; polluting unlawfully is the crime.
+
+   So the vocabulary is split in three:
+     HARD  — phrases that are criminal on their own ("wildlife trafficking")
+     SOFT  — the domain, innocent by itself ("pollution", "emissions")
+     CRIME — enforcement or illegality ("illegal", "arrested", "fined", "seized")
+   A SOFT term only counts when a CRIME term appears with it. BLOCK kills the
+   data-and-forecast pages outright, since those carry both by coincidence. */
+const ENV_BLOCK = ["air quality index","(aqi)","aqi and","air quality map","pollution ranking",
+  "weather forecast","pollen count","uv index","real-time air","live air quality",
+  "most polluted cities ranking"];
+
+/* Climate and environment DIPLOMACY — COP summits, treaties, pledges, finance.
+   Not crime, but the UAE hosted COP28 and its climate positioning is watched
+   closely, so it earns its own labelled sub-category instead of being dropped
+   with the air-quality pages or mislabelled as an offence. */
+const ENV_POLICY = ["cop28","cop29","cop30","cop 28","cop 29","cop 30","climate summit",
+  "climate conference","climate talks","climate negotiations","unfccc","paris agreement",
+  "climate finance","loss and damage","emissions target","net zero pledge","carbon market",
+  "carbon credit","ipcc report","biodiversity cop","cites conference","unea","green transition",
+  "climate pledge","climate accord","environment ministers","climate deal",
+  "قمة المناخ","مؤتمر المناخ","مؤتمر الأطراف","اتفاق باريس","تمويل المناخ",
+  "الخسائر والأضرار","الحياد الكربوني","أسواق الكربون","مفاوضات المناخ","اتفاق مناخي"];
+
+const ENV_CRIME = ["illegal","illicit","unlawful","banned","prohibited","smuggl","traffick",
+  "arrest","detain","convict","sentenc","jailed","prosecut","indict","charged with","fined",
+  "fine of","penalty","seiz","confiscat","raid","crackdown","court","lawsuit","sued",
+  "violation","breach","offence","offense","crime","criminal","scandal","probe","investigation",
+  "negligence","cover-up","falsif","fraud","bribe","corrupt","dumping","poach","unreported",
+  "unregulated","black market","syndicate","cartel","network","gang",
+  /* Arabic */ "غير قانوني","غير مشروع","مهرب","تهريب","اعتقال","إدانة","محكمة","غرامة",
+  "مصادرة","مداهمة","جريمة","انتهاك","مخالفة","فساد","تلاعب","إهمال"];
+
+const ENV_CATS = {
+  // 1. Wildlife crimes
+  wildlife: {
+    hard: ["wildlife trafficking","wildlife crime","wildlife smuggling","illegal wildlife trade",
+      "poaching","poacher","ivory trade","rhino horn","pangolin scale","shark finning",
+      "illegal pet trade","bushmeat","cites violation","endangered species trade",
+      "الاتجار بالحياة البرية","الصيد الجائر","تهريب الحيوانات","العاج"],
+    soft: ["wildlife","endangered species","protected species","falcon","rhino","elephant",
+      "pangolin","tiger","turtle","الحياة البرية","الأنواع المهددة"]
+  },
+  // 2. Pollution and waste crimes
+  pollution: {
+    hard: ["illegal dumping","waste dumping","toxic waste","hazardous waste","waste trafficking",
+      "e-waste dumping","illegal discharge","emissions cheating","emissions fraud",
+      "dieselgate","illegal landfill","تهريب النفايات","النفايات السامة","دفن النفايات"],
+    soft: ["pollution","polluting","polluted","emissions","effluent","oil spill","chemical spill",
+      "contaminat","landfill","sewage","waste","التلوث","الانبعاثات","تسرب نفطي","النفايات"]
+  },
+  // 3. Forestry crimes
+  forestry: {
+    hard: ["illegal logging","timber trafficking","timber smuggling","illegal deforestation",
+      "illegal land clearing","land grabbing","forest crime","قطع الأشجار غير القانوني",
+      "تهريب الأخشاب","إزالة الغابات"],
+    soft: ["logging","timber","deforestation","forest","rainforest","الغابات","الأخشاب"]
+  },
+  // 4. Fisheries crimes
+  fisheries: {
+    hard: ["illegal fishing","iuu fishing","illegal, unreported","overfishing violation",
+      "fishing without licence","fishing without license","trawler seized","fish smuggling",
+      "الصيد غير القانوني","الصيد الجائر للأسماك"],
+    soft: ["fishing","fishery","fisheries","trawler","fish stock","الصيد","الثروة السمكية"]
+  },
+  // 5. Illegal mining
+  mining: {
+    hard: ["illegal mining","illegal gold mining","illegal sand mining","unlicensed mining",
+      "mining without permit","blood gold","conflict minerals","التعدين غير القانوني",
+      "التنقيب غير المشروع","الذهب المهرب"],
+    soft: ["mining","quarry","gold mine","mercury","tailings","التعدين","المناجم"]
+  },
+  // 6. Transnational organised environmental crime
+  organized: {
+    hard: ["environmental crime network","transnational environmental crime","green crime",
+      "eco-trafficking","environmental crime syndicate","interpol environmental",
+      "unep environmental crime","الجريمة البيئية المنظمة","شبكة تهريب بيئية"],
+    soft: ["organised crime","organized crime","transnational","syndicate","cartel"]
+  },
+  // 7. Corporate environmental crime
+  corporate: {
+    hard: ["environmental violation","environmental fine","environmental lawsuit",
+      "pollution fine","epa fine","greenwashing lawsuit","corporate negligence",
+      "environmental negligence","spill liability","permit violation",
+      "مخالفة بيئية","غرامة بيئية","دعوى بيئية"],
+    soft: ["company","firm","corporation","refinery","plant","factory","operator",
+      "شركة","مصنع","مصفاة"]
+  },
+  // 8. Individual offences
+  individual: {
+    hard: ["illegal hunting","hunting without permit","littering fine","dumped waste illegally",
+      "caught dumping","wildlife smuggler arrested","صيد بدون ترخيص","رمي النفايات"],
+    soft: ["hunter","hunting","litter","dumped","الصيد","النفايات"]
+  }
+};
+
+// Returns the category key, or null when the text is not an environmental crime.
+function envClass(text) {
+  const t = (text || "").toLowerCase();
+  if (ENV_BLOCK.some((b) => t.includes(b))) return null;   // data pages, not crimes
+  const crime = ENV_CRIME.some((c) => t.includes(c));
+  // Diplomacy first: a COP story that also mentions an investigation should read
+  // as the summit it is, not as a crime report.
+  if (!crime && ENV_POLICY.some((p) => t.includes(p))) return "policy";
+  for (const [key, v] of Object.entries(ENV_CATS)) {
+    if (v.hard.some((h) => t.includes(h))) return key;      // criminal on its own
+    if (crime && v.soft.some((s) => t.includes(s))) return key;
+  }
+  return null;
+}
 
 const T_CHILD = [
   // abuse and assault
@@ -77,6 +186,39 @@ const NOISE = ["metro line","rail network","railway","autonomous rail","new term
   "album","singer","musician","actor","actress","recipe","coffee","fine dining",
   "interview with","life and work","spiritualism","wellness","travel guide","things to do"];
 
+/* Sensitive: hostile or damaging coverage of the UAE. Four existing axes
+   (reputation, political, economic, security) plus two the user named
+   explicitly: attacks aimed AT the UAE, and the Sudan file. */
+const NEG_ADD = [
+  /* --- attacks, smears and hostile campaigns aimed at the UAE --- */
+  "anti-uae","anti uae","against the uae","targeting the uae","smear campaign","smear",
+  "disinformation campaign","misinformation campaign","propaganda campaign","hostile campaign",
+  "media campaign against","defamation","defame","slander","libel","insult","insulted",
+  "mocked","ridicul","incitement","inciting","hate campaign","hashtag campaign","trolls",
+  "boycott the uae","boycott uae","calls to boycott","blamed the uae","blames uae",
+  "uae blamed","accuses the uae","accused the uae","uae accused","criticises the uae",
+  "criticizes the uae","condemns the uae","condemned the uae","denounces the uae",
+  "summoned the uae","expelled uae","protest against the uae","rally against the uae",
+  "campaign against the uae","attacks on the uae","attacked the uae",
+  "الإساءة للإمارات","إساءة إلى الإمارات","حملة ضد الإمارات","تشويه سمعة",
+  "تحريض على الإمارات","اتهام الإمارات","اتهمت الإمارات","تتهم الإمارات",
+  "إدانة الإمارات","انتقاد الإمارات","مقاطعة الإمارات","تشهير",
+
+  /* --- the Sudan file: named by the user, and the single most active
+         reputational front for the UAE at the moment --- */
+  "sudan","sudanese","khartoum","darfur","el fasher","al fashir","nyala","port sudan",
+  "rapid support forces","rsf","hemedti","hemeti","dagalo","janjaweed",
+  "sudanese armed forces","burhan","genocide in darfur","sudan war","sudan conflict",
+  "arms to sudan","weapons to sudan","arming the rsf","gold smuggling","sudanese gold",
+  "un panel of experts","icj case","international court of justice","icc",
+  "السودان","السوداني","الخرطوم","دارفور","الفاشر","نيالا","بورتسودان",
+  "الدعم السريع","حميدتي","دقلو","الجنجويد","الجيش السوداني","البرهان",
+  "حرب السودان","تسليح الدعم السريع","ذهب السودان","محكمة العدل الدولية"
+];
+
+const UAE_T = ["uae","emirates","emirati","abu dhabi","dubai","sharjah","ajman","fujairah",
+  "الإمارات","الامارات","أبوظبي","ابوظبي","دبي","الشارقة"];
+
 function hits(t, list) { return list.some((k) => t.includes(k)); }
 
 // classify() is given the headline alone first. A story is about what its
@@ -95,21 +237,25 @@ function classify(text) {
   const security  = hits(t, T_SECURITY);
   const political = hits(t, T_POLITICAL);
   const economic  = hits(t, T_ECONOMIC);
-  const env       = hits(t, T_ENV);
+  const env       = envClass(t);                 // now a category, or null
   const child     = hits(t, T_CHILD);
+  // Hostile coverage of the UAE — including the Sudan file — is intelligence in
+  // its own right, even when the wording trips none of the topic lists above.
+  const sensitive = hits(t, UAE_T) && hits(t, NEG_ADD);
 
-  // No topic signal at all → not intelligence, whatever place it names.
-  if (!(security || political || economic || env || child)) return null;
+  if (!(security || political || economic || env || child || sensitive)) return null;
 
   // Topic word present but the piece is plainly consumer/business copy → drop,
   // unless it also carries a hard security / crime signal.
-  if (hits(t, NOISE) && !(security || env || child || economic)) return null;
+  if (hits(t, NOISE) && !(security || env || child || economic || sensitive)) return null;
 
   const topics = [];
+  if (sensitive) topics.push("critical");
   if (security)  topics.push("security");
   if (political) topics.push("political");
   if (economic)  topics.push("economy");
-  if (env)       topics.push("environment");
+  if (env)     { topics.push("environment"); topics.push("env:" + env);
+                 if (env === "policy") topics.push("diplomacy"); }
   if (child)     topics.push("childsafety");
   return topics;
 }
