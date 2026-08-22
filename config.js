@@ -156,6 +156,9 @@ export const CRON_SCHEDULE = process.env.CRON_SCHEDULE || "*/2 * * * *";
 // ---------------------------------------------------------------------------
 export const APIFY_TOKEN = process.env.APIFY_TOKEN || "";
 export const APIFY_INTERVAL_MIN = Number(process.env.APIFY_INTERVAL_MIN || 360); // 6 hours
+// X costs a fraction of what the other platforms cost per item, so it gets its
+// own faster clock. Everything else stays on APIFY_INTERVAL_MIN.
+export const APIFY_X_INTERVAL_MIN = Number(process.env.APIFY_X_INTERVAL_MIN || 120);
 export const APIFY_MAX_ITEMS = Number(process.env.APIFY_MAX_ITEMS || 25);        // default per run
 
 // Per-platform limits. Real billing showed TikTok costing ~30x what X and

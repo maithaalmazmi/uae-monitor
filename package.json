@@ -7,11 +7,14 @@
   "scripts": {
     "start": "node server.js"
   },
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "node-cron": "^3.0.3",
+    "pg": "^8.11.5",
     "rss-parser": "^3.13.0"
   }
 }

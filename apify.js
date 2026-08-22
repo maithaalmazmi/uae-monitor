@@ -200,16 +200,24 @@ async function fetchFacebook() {
 }
 
 // ---------------------------------------------------------------- entry point
-export async function collectApify() {
+// X is cheap per item and the only platform worth polling often, so it runs on
+// its own fast schedule. Instagram / TikTok / Facebook cost far more per item
+// and stay on the slow one. `group` selects which set to run.
+const JOBS = {
+  fast: [["x", fetchX], ["x-royal", fetchXRoyals], ["x-region", fetchXRegions]],
+  slow: [["instagram", fetchInstagram], ["tiktok", fetchTikTok], ["facebook", fetchFacebook]]
+};
+const ENABLED = {
+  "x": "x", "x-royal": "x", "x-region": "x",
+  "instagram": "instagram", "tiktok": "tiktok", "facebook": "facebook"
+};
+
+export async function collectApify(group = "all") {
   if (!APIFY_TOKEN) return [];
 
-  const jobs = [];
-  if (APIFY_PLATFORMS.x)         jobs.push(["x", fetchX]);
-  if (APIFY_PLATFORMS.x)         jobs.push(["x-royal", fetchXRoyals]);
-  if (APIFY_PLATFORMS.x)         jobs.push(["x-region", fetchXRegions]);
-  if (APIFY_PLATFORMS.instagram) jobs.push(["instagram", fetchInstagram]);
-  if (APIFY_PLATFORMS.tiktok)    jobs.push(["tiktok", fetchTikTok]);
-  if (APIFY_PLATFORMS.facebook)  jobs.push(["facebook", fetchFacebook]);
+  const picked = group === "all" ? [...JOBS.fast, ...JOBS.slow] : (JOBS[group] || []);
+  const jobs = picked.filter(([name]) => APIFY_PLATFORMS[ENABLED[name]]);
+  if (!jobs.length) return [];
 
   const results = await Promise.all(jobs.map(async ([name, fn]) => {
     try {
@@ -226,7 +234,7 @@ export async function collectApify() {
     const topics = item.royal ? ["official"] : classify(item.text);
     if (!topics) continue;                 // keep only UAE / security / political matter
     out.push({
-      id: hash(`apify_${item.url}_${item.text.slice(0, 60)}`),
+      id: hash(`apify_${item.url}_${(item.text || "").slice(0, 60)}`),
       source: item.source,
       kind: "social",
       author: item.author,
@@ -239,6 +247,6 @@ export async function collectApify() {
       srcRegion: item.srcRegion || undefined
     });
   }
-  console.log(`[Apify] kept ${out.length} relevant items`);
+  console.log(`[Apify:${group}] kept ${out.length} relevant items`);
   return out;
 }

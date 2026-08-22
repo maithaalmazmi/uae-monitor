@@ -70,9 +70,24 @@ const NOISE = ["metro line","rail network","railway","autonomous rail","new term
   "shopping","mall","retail","festival","concert","celebrity","fashion","cuisine","restaurant",
   "football","cricket","tennis","formula 1","f1 ","match","tournament","league","weather",
   "temperature","horoscope","lifestyle","launches new app","opens new store","ticket sales",
-  "record profit","earnings beat","share price","ipo","quarterly results","product launch"];
+  "record profit","earnings beat","share price","ipo","quarterly results","product launch",
+  // arts, culture and human-interest profiles
+  "artist","artwork","painting","painter","exhibition","gallery","museum","biennale",
+  "sculpture","poetry","poet","novel","filmmaker","film festival","movie","documentary",
+  "album","singer","musician","actor","actress","recipe","coffee","fine dining",
+  "interview with","life and work","spiritualism","wellness","travel guide","things to do"];
 
 function hits(t, list) { return list.some((k) => t.includes(k)); }
+
+// classify() is given the headline alone first. A story is about what its
+// headline says; letting a long blurb supply the only topic word turned arts
+// profiles into "security" whenever the body mentioned war or a minister.
+export function classifyItem(title, summary) {
+  const head = classify(title);
+  if (!head) return null;                       // headline carries no signal → drop
+  const full = classify(`${title} ${summary || ""}`);
+  return full && full.length > head.length ? full : head;
+}
 
 function classify(text) {
   const t = (text || "").toLowerCase();
@@ -105,8 +120,7 @@ export async function collectRSS() {
     try {
       const parsed = await parser.parseURL(feed.url);
       for (const e of parsed.items || []) {
-        const text = `${e.title || ""} ${e.contentSnippet || e.content || ""}`;
-        const topics = classify(text);
+        const topics = classifyItem(e.title || "", e.contentSnippet || e.content || "");
         if (!topics) continue;
         out.push({
           id: hash(e.link || e.guid || e.title),

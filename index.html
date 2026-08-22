@@ -88,10 +88,12 @@ a{color:inherit}
   border:1px solid var(--line);border-radius:999px;background:transparent;cursor:pointer;
   font:inherit;font-size:12px;font-weight:700;color:var(--ink2);letter-spacing:.3px;
   transition:background .18s,color .18s,border-color .18s}
+.xtog .n{margin-inline-start:6px;font-size:10px;font-weight:800;opacity:.65;font-variant-numeric:tabular-nums}
 .xtog i{width:8px;height:8px;border-radius:50%;background:var(--ink3);transition:background .18s,box-shadow .18s}
 .xtog:hover{border-color:#C8A951;color:var(--ink)}
 .xtog[aria-pressed="true"]{background:#8A6D1F;border-color:#8A6D1F;color:#fff}
 .xtog[aria-pressed="true"] i{background:#F2D479;box-shadow:0 0 0 3px rgba(242,212,121,.28)}
+.xtog.zero{opacity:.5}
 .xtog:focus-visible{outline:2px solid #8A6D1F;outline-offset:2px}
 /* exclusive + corroboration badges */
 .xcl{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;
@@ -552,6 +554,13 @@ a:focus-visible,button:focus-visible,input:focus-visible,
 .stream.swap .item{animation:reenter .42s cubic-bezier(.22,1,.3,1) both}
 @keyframes reenter{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
 
+/* archive indicator — green when items survive restarts, amber when they do not */
+.pill.arch{gap:6px;display:inline-flex;align-items:center}
+.pill.arch::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ink3)}
+.pill.arch.on{color:#0F5638;border-color:#9ED7BC}
+.pill.arch.on::before{background:#16A34A}
+.pill.arch.off{color:#8A5A00;border-color:#E4C77A}
+.pill.arch.off::before{background:#D97706}
 /* live dot on the LIVE pill gets a sweep */
 .pill.live{position:relative;overflow:hidden}
 .pill.live::after{content:"";position:absolute;inset:0;
@@ -680,6 +689,13 @@ a:focus-visible,button:focus-visible,input:focus-visible,
 .seg button.env.on{background:#126b45}
 .seg button.kid{color:#a8322f}
 .seg button.kid.on{background:#a8322f}
+/* Each coloured tab sets its own text colour, and the .on rules below set only a
+   background — so a selected tab ended up drawing its label in the very colour
+   it had just painted behind it. This forces white text on every selected tab.
+   It must stay last: it wins by source order, not by piling on specificity. */
+.seg button.on,.seg button.crit.on,.seg button.pos.on,
+.seg button.env.on,.seg button.kid.on{color:#fff}
+.seg button.on .n{color:#fff;opacity:.8}
 .bar.e .bf{background:linear-gradient(180deg,#2fa36e,#126b45)}
 .bar.k .bf{background:linear-gradient(180deg,#e05a56,#a8322f)}
 
@@ -747,6 +763,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,
     </div>
     <div class="mh-r">
       <span class="pill live"><span class="led"></span><span data-i="live">LIVE</span></span>
+      <span class="pill arch" id="arch" title="">—</span>
       <span class="pill" id="clock">—</span>
       <span class="ring" id="ring" title="next refresh">
         <svg viewBox="0 0 30 30"><circle class="bg" cx="15" cy="15" r="12.5"/>
@@ -771,7 +788,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,
       <input id="q" placeholder="Search headlines, outlets, topics…" />
     </div>
     <div class="seg" id="cats"></div>
-    <button class="xtog" id="xtog" aria-pressed="false" title="Exclusive only"><i></i><span data-i="xonly">Exclusive only</span></button>
+    <button class="xtog" id="xtog" aria-pressed="false" title="Exclusive only"><i></i><span data-i="xonly">Exclusive only</span><span class="n" id="xn">0</span></button>
     <div class="regs" id="regs"><span class="rl" data-i="region">Region</span></div>
   </div>
 </div>
@@ -1030,7 +1047,13 @@ const NOISE=["metro line","rail network","railway","autonomous rail","new termin
  "shopping","mall","retail","festival","concert","celebrity","fashion","restaurant",
  "football","cricket","tennis","formula 1","tournament","league","weather","horoscope",
  "lifestyle","opens new store","ticket sales","record profit","earnings beat","share price",
- "ipo","quarterly results","product launch"];
+ "ipo","quarterly results","product launch",
+ /* arts, culture and human-interest — the profile pieces that kept slipping in */
+ "artist","artwork","painting","painter","exhibition","gallery","museum","biennale",
+ "sculpture","poetry","poet","novel","author of","filmmaker","film festival","movie",
+ "documentary","album","singer","musician","band","actor","actress","recipe","cuisine",
+ "coffee","restaurant review","fine dining","interview with","profile of","his life and work",
+ "her life and work","spiritualism","wellness","fitness","travel guide","things to do"];
 function isNoise(t,cs){
  t=t.toLowerCase();
  if(!NOISE.some(x=>t.includes(x)))return false;
@@ -1061,9 +1084,12 @@ const T={en:{title:"UAE Intelligence Monitor",kicker:"Security & Political Intel
  cReg:"Regional Activity",cRegS:"Click a region to filter",cMap:"Global Coverage Map",mapHint:"Click a region to filter",vGlobe:"Globe",vFlat:"Flat",gHint:"drag to spin · click a region",
  critTx:"sensitive items on the UAE — political, economic or security — in the current window.",critBtn:"Review",
  foot:"UAE Intelligence Monitor — aggregated public reporting",foot2:"Auto-refresh every 2 minutes",
- loading:"Loading…",empty:"No matching reports.",search:"Search headlines, outlets, topics…",
+ loading:"Loading…",empty:"No matching reports.",xempty:"No exclusives in this window. A story earns the badge only when one accredited outlet has it and no other outlet has carried it yet.",search:"Search headlines, outlets, topics…",
  outlets:n=>`${n} outlets`,showing:n=>`${n} shown`,
- xonly:"Exclusive only",xcl:"Exclusive",royal:"Official",dupes:n=>n===1?"+1 outlet carried this":`+${n} outlets carried this`,
+ xonly:"Exclusive only",xcl:"Exclusive",royal:"Official",
+ archOn:"Archive on",archOff:"Archive off",
+ archOnT:"Items are stored in the database and survive restarts and updates.",
+ archOffT:"No database connected — every restart or update clears the items. Add PostgreSQL in Railway and set DATABASE_URL.",dupes:n=>n===1?"+1 outlet carried this":`+${n} outlets carried this`,
  C:{all:"All",critical:"Sensitive",positive:"Positive & official",social:"Social",security:"Security",political:"Political",defense:"Defence",diplomacy:"Diplomacy",economy:"Economy",environment:"Environmental crime",childsafety:"Child safety & assault",general:"General"},
  R:{all:"All",uae:"UAE",me:"Middle East",am:"Americas",eu:"Europe",as:"Asia",af:"Africa",oc:"Australia & Pacific",gl:"Global"},
  ago:{s:"s ago",m:"m ago",h:"h ago",d:"d ago"},U:{m:"min",h:"hrs",d:"days"}},
@@ -1077,9 +1103,12 @@ const T={en:{title:"UAE Intelligence Monitor",kicker:"Security & Political Intel
  cReg:"النشاط الإقليمي",cRegS:"اضغط منطقة للتصفية",cMap:"خريطة التغطية العالمية",mapHint:"اضغط منطقة للتصفية",vGlobe:"كرة أرضية",vFlat:"مسطحة",gHint:"اسحب للدوران · اضغط منطقة",
  critTx:"مادة حساسة عن الإمارات — سياسية أو اقتصادية أو أمنية — في الفترة الحالية.",critBtn:"عرض",
  foot:"مرصد الاستخبارات الإماراتي — تجميع تقارير علنية",foot2:"تحديث تلقائي كل دقيقتين",
- loading:"جارٍ التحميل…",empty:"لا توجد مواد مطابقة.",search:"ابحث في العناوين والمصادر والمواضيع…",
+ loading:"جارٍ التحميل…",empty:"لا توجد مواد مطابقة.",xempty:"لا يوجد سبق في هذه الفترة. الشارة لا تُمنح إلا لمادة عند وكالة معتمدة واحدة لم ينقلها أحد غيرها بعد.",search:"ابحث في العناوين والمصادر والمواضيع…",
  outlets:n=>`${n} مصدر`,showing:n=>`${n} معروض`,
- xonly:"الحصري فقط",xcl:"حصري",royal:"رسمي",dupes:n=>n===1?"نقله مصدر آخر":n===2?"نقلته وكالتان أخريان":n<=10?`نقلته ${n} مصادر أخرى`:`نقلته ${n} مصدراً آخر`,
+ xonly:"الحصري فقط",xcl:"حصري",royal:"رسمي",
+ archOn:"الأرشيف يعمل",archOff:"الأرشيف متوقف",
+ archOnT:"الأخبار محفوظة في قاعدة البيانات وتنجو من التحديث وإعادة التشغيل.",
+ archOffT:"لا توجد قاعدة بيانات — كل تحديث أو إعادة تشغيل يمسح الأخبار. أضيفي PostgreSQL في Railway واربطي DATABASE_URL.",dupes:n=>n===1?"نقله مصدر آخر":n===2?"نقلته وكالتان أخريان":n<=10?`نقلته ${n} مصادر أخرى`:`نقلته ${n} مصدراً آخر`,
  C:{all:"الكل",critical:"حساسة",positive:"إيجابية ورسمية",social:"تواصل اجتماعي",security:"الأمن",political:"السياسة",defense:"الدفاع",diplomacy:"الدبلوماسية",economy:"الاقتصاد",environment:"جرائم بيئية",childsafety:"جرائم الأطفال والاعتداءات",general:"عام"},
  R:{all:"الكل",uae:"الإمارات",me:"الشرق الأوسط",am:"الأمريكتان",eu:"أوروبا",as:"آسيا",af:"أفريقيا",oc:"أستراليا والمحيط الهادئ",gl:"عالمي"},
  ago:{s:" ث",m:" د",h:" س",d:" ي"},U:{m:"دقيقة",h:"ساعة",d:"يوم"}}};
@@ -1129,6 +1158,9 @@ function chips(){
  const n=v=>`<span class="n">${v}</span>`;
  $("cats").innerHTML=CATS.map(k=>`<button data-c="${k}" class="${k==="critical"?"crit ":k==="positive"?"pos ":k==="environment"?"env ":k==="childsafety"?"kid ":""}${k===cat?"on":""}${byCat[k]?"":" zero"}">${t("C")[k]}${n(byCat[k]||0)}</button>`).join("");
  [...$("regs").querySelectorAll("button")].forEach(b=>b.remove());
+ const xn=ALL.filter(a=>a._xcl).length;
+ $("xn").textContent=xn;
+ $("xtog").classList.toggle("zero",!xn);
  $("regs").insertAdjacentHTML("beforeend",REGS.map(k=>`<button data-r="${k}" class="${k===reg?"on":""}${byReg[k]?"":" zero"}">${t("R")[k]}${n(byReg[k]||0)}</button>`).join(""));
 }
 // Choosing a topic means "show me this everywhere", so it releases any region
@@ -1148,15 +1180,31 @@ function applyLang(){
  document.documentElement.lang=L;document.documentElement.dir=L==="ar"?"rtl":"ltr";
  document.querySelectorAll("[data-i]").forEach(el=>{const v=T[L][el.dataset.i];if(typeof v==="string")el.textContent=v;});
  $("q").placeholder=t("search");$("lang").textContent=L==="en"?"العربية":"English";
- chips();stats();draw();MC=paintMap();fillTicker();
+ chips();stats();draw();MC=paintMap();fillTicker();paintArch(ARCH===null?undefined:ARCH);
 }
 
 /* ---------- data ---------- */
+/* The server reports whether it is persisting to a database. Surfacing it here
+   turns "did my news get wiped again?" into something visible at a glance
+   instead of a URL you have to remember to open. */
+let ARCH=null;
+function paintArch(on){
+ if(on===undefined)return;
+ ARCH=!!on;
+ const el=$("arch");if(!el)return;
+ el.classList.toggle("on",ARCH);
+ el.classList.toggle("off",!ARCH);
+ el.textContent=t(ARCH?"archOn":"archOff");
+ el.title=t(ARCH?"archOnT":"archOffT");
+}
+
 async function load(){
  $("clock").textContent=new Date().toLocaleString(L==="ar"?"ar-AE":[], {weekday:"short",hour:"2-digit",minute:"2-digit"});
  try{
   const r=await fetch(API);if(!r.ok)throw 0;
-  const {items}=await r.json();
+  const j=await r.json();
+  const items=j.items;
+  paintArch(j.stats && j.stats.db);
   ALL=(items||[]).map(i=>{
    let ti=(i.title||"").trim(),su=(i.summary||"").trim(),so="",plat="";
    const social=i.kind==="social";
@@ -1172,7 +1220,12 @@ async function load(){
    const nm=s=>s.toLowerCase().replace(/[^a-z0-9]/g,"");
    if(su&&nm(su).startsWith(nm(ti).slice(0,40)))su="";
    const tx=ti+" "+su;
-   const cs=cats(tx);
+   // A story is about what its HEADLINE says. Classifying on title+summary let a
+   // long blurb smuggle one stray word ("war", "minister") into an arts profile
+   // and promote it to intelligence. The headline must carry the signal; the
+   // summary may only add further categories, never create the first one.
+   const csTitle=cats(ti);
+   const cs=(csTitle.length===1&&csTitle[0]==="general")?csTitle:cats(tx);
    const isRoyal=!!i.royal||(social&&ROYAL_RX.test(so));
    if(!isRoyal){
      if(cs.length===1&&cs[0]==="general")return null; // no topic signal at all
@@ -1210,10 +1263,19 @@ async function load(){
    So we fold near-identical headlines into a single entry, show it once with a
    count of who else carried it, and reserve the "exclusive" badge for a story
    that exactly one accredited outlet has — nobody else in the window. */
-const TIER1=["reuters","associated press","ap news","afp","bloomberg","financial times",
- "wall street journal","wsj","new york times","nyt","washington post","bbc","the guardian",
- "guardian","al jazeera","sky news","cnn","economist","wam","emirates news agency","the national",
- "gulf news","khaleej times","politico","foreign policy","defense news","janes","nikkei","scmp"];
+const TIER1=[
+ /* wires and global papers of record */
+ "reuters","associated press","ap news","afp","agence france","bloomberg","financial times",
+ "wall street journal","wsj","new york times","nyt","washington post","the economist","economist",
+ /* broadcasters */
+ "bbc","sky news","cnn","al jazeera","deutsche welle","dw ","france 24","euronews","abc news",
+ "abc australia","al arabiya",
+ /* UAE and the Gulf */
+ "wam","emirates news agency","the national","gulf news","khaleej times","arab news",
+ /* regional and specialist desks already in your feed list */
+ "middle east eye","times of israel","the guardian","guardian","politico","foreign policy",
+ "defense news","janes","nikkei","scmp","south china morning post","japan times",
+ "times of india","sydney morning herald","africanews","allafrica"];
 const isTier1=s=>{const l=(s||"").toLowerCase();return TIER1.some(k=>l.includes(k));};
 
 const STOP=new Set(("the a an and or of in on at to for from by with as is are was were be been"
@@ -1372,7 +1434,7 @@ function draw(){
 
  /* stream */
  const rest=list.slice(3,63);
- if(!rest.length&&!h.length){$("stream").innerHTML=`<div class="empty">${t("empty")}</div>`;}
+ if(!rest.length&&!h.length){$("stream").innerHTML=`<div class="empty">${XONLY?t("xempty"):t("empty")}</div>`;}
  else{
   $("stream").innerHTML=rest.map((a,i)=>{const s=stamp(a.ts);
    return`<article class="item ${a.cats.includes("critical")?"crit":a.cats.includes("positive")?"pos":""} ${a.social?"social":""} ${a._new?"fresh":""}" style="animation-delay:${Math.min(i*.03,.5)}s">
