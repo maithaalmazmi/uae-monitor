@@ -11,7 +11,8 @@ import { CRON_SCHEDULE, APIFY_TOKEN, APIFY_INTERVAL_MIN } from "./config.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 app.use(cors());
-app.use(express.static(path.join(__dirname, "..", "public")));
+// every file sits at the top level of this repo, so serve from here
+app.use(express.static(__dirname));
 
 // --- API ---
 app.get("/api/feed", (req, res) => {
@@ -25,7 +26,7 @@ app.get("/api/feed", (req, res) => {
 app.get("/api/stats", (_req, res) => res.json(stats()));
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
-// --- Collection cycle ---
+// --- News collection ---
 let running = false;
 async function cycle() {
   if (running) return;
@@ -57,15 +58,15 @@ async function apifyCycle() {
   }
 }
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+const PORT = 3000;
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`UAE Monitor running on http://localhost:${PORT}`);
-  cycle(); // initial fill
+  cycle();
   cron.schedule(CRON_SCHEDULE, cycle);
   console.log(`Scheduled news collection: ${CRON_SCHEDULE}`);
 
   if (APIFY_TOKEN) {
-    apifyCycle(); // one social pull on boot
+    apifyCycle();
     setInterval(apifyCycle, APIFY_INTERVAL_MIN * 60 * 1000);
     console.log(`Social (Apify) collection every ${APIFY_INTERVAL_MIN} min`);
   } else {
