@@ -103,6 +103,12 @@ a{color:inherit}
 .dupe{font-size:10px;font-weight:700;color:var(--ink3);letter-spacing:.3px;
   border:1px solid var(--line);border-radius:4px;padding:1px 6px}
 @media (prefers-reduced-motion:reduce){.xcl::before{animation:none}}
+/* live counts on tabs and chips */
+.seg button .n,.regs button .n{display:inline-block;margin-inline-start:6px;font-size:10px;
+  font-weight:800;opacity:.6;font-variant-numeric:tabular-nums}
+.seg button.zero,.regs button.zero{opacity:.42}
+.seg button.zero .n,.regs button.zero .n{opacity:.9}
+.seg button.on .n,.regs button.on .n{opacity:.85}
 .regs{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .regs .rl{font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink3)}
 .regs button{border:1px solid var(--line2);background:var(--card);font:inherit;font-size:12px;
@@ -1031,9 +1037,18 @@ function isNoise(t,cs){
  return !(cs.includes("security")||cs.includes("environment")||
           cs.includes("childsafety")||cs.includes("critical"));
 }
-function regOf(t){t=t.toLowerCase();
- for(const r of ["uae","me","am","eu","as","af","oc"])if(REG[r].some(x=>t.includes(x)))return r;
- return "gl";}
+/* A story about Australian defence spending "amid tensions with China" names two
+   regions. Taking the first match in list order sent it to Asia; counting the
+   matches and taking the strongest sends it to Australia, where it belongs.
+   The UAE keeps priority — this dashboard exists to watch the UAE. */
+function regOf(t){t=(t||"").toLowerCase();
+ if(REG.uae.some(x=>t.includes(x)))return "uae";
+ let best="gl",top=0;
+ for(const r of ["me","am","eu","as","af","oc"]){
+  const n=REG[r].reduce((c,x)=>c+(t.includes(x)?1:0),0);
+  if(n>top){top=n;best=r;}
+ }
+ return best;}
 
 /* ---------- i18n ---------- */
 const T={en:{title:"UAE Intelligence Monitor",kicker:"Security & Political Intelligence",live:"LIVE",
@@ -1085,16 +1100,45 @@ function stamp(ts){const s=Math.floor((Date.now()-ts)/1000),u=t("U");
 /* ---------- controls ---------- */
 const CATS=["all","critical","positive","social","security","political","defense","diplomacy","economy","environment","childsafety"];
 const REGS=["all","uae","me","am","eu","as","af","oc","gl"];
-function chips(){
- $("cats").innerHTML=CATS.map(k=>`<button data-c="${k}" class="${k==="critical"?"crit ":k==="positive"?"pos ":k==="environment"?"env ":k==="childsafety"?"kid ":""}${k===cat?"on":""}">${t("C")[k]}</button>`).join("");
- [...$("regs").querySelectorAll("button")].forEach(b=>b.remove());
- $("regs").insertAdjacentHTML("beforeend",REGS.map(k=>`<button data-r="${k}" class="${k===reg?"on":""}">${t("R")[k]}</button>`).join(""));
+/* Every tab and chip carries its own live count. An empty category used to look
+   identical to a full one until you clicked it, which made a stuck region filter
+   impossible to see. Category counts ignore the region filter and region counts
+   ignore the category, so each number answers "what would I get if I clicked
+   this" rather than "what is left after everything else". */
+function counts(){
+ const q=$("q").value.trim().toLowerCase();
+ const base=ALL.filter(a=>(!XONLY||a._xcl)&&
+   (!q||(a.title+" "+a.summary+" "+a.source).toLowerCase().includes(q)));
+ const byCat={},byReg={};
+ for(const k of CATS) byCat[k]=0;
+ for(const k of REGS) byReg[k]=0;
+ for(const a of base){
+  const inReg = reg==="all"||a.region===reg;
+  const inCat = cat==="all" ? !a.cats.includes("general") : a.cats.includes(cat);
+  if(inReg){
+   if(!a.cats.includes("general"))byCat.all++;
+   for(const c of a.cats) if(c in byCat) byCat[c]++;
+  }
+  if(inCat){ byReg.all++; if(a.region in byReg) byReg[a.region]++; }
+ }
+ return {byCat,byReg};
 }
-$("cats").onclick=e=>{const b=e.target.closest("button");if(!b)return;cat=b.dataset.c;chips();draw();};
-$("regs").onclick=e=>{const b=e.target.closest("button");if(!b)return;reg=b.dataset.r;chips();draw();};
-$("q").addEventListener("input",draw);
+
+function chips(){
+ const {byCat,byReg}=counts();
+ const n=v=>`<span class="n">${v}</span>`;
+ $("cats").innerHTML=CATS.map(k=>`<button data-c="${k}" class="${k==="critical"?"crit ":k==="positive"?"pos ":k==="environment"?"env ":k==="childsafety"?"kid ":""}${k===cat?"on":""}${byCat[k]?"":" zero"}">${t("C")[k]}${n(byCat[k]||0)}</button>`).join("");
+ [...$("regs").querySelectorAll("button")].forEach(b=>b.remove());
+ $("regs").insertAdjacentHTML("beforeend",REGS.map(k=>`<button data-r="${k}" class="${k===reg?"on":""}${byReg[k]?"":" zero"}">${t("R")[k]}${n(byReg[k]||0)}</button>`).join(""));
+}
+// Choosing a topic means "show me this everywhere", so it releases any region
+// filter left over from a map click — that combination was silently emptying tabs.
+$("cats").onclick=e=>{const b=e.target.closest("button");if(!b)return;
+ cat=b.dataset.c;reg="all";chips();draw();stats();};
+$("regs").onclick=e=>{const b=e.target.closest("button");if(!b)return;reg=b.dataset.r;chips();draw();stats();};
+$("q").addEventListener("input",()=>{chips();draw();});
 $("xtog").addEventListener("click",()=>{XONLY=!XONLY;
- $("xtog").setAttribute("aria-pressed",XONLY?"true":"false");draw();stats();});
+ $("xtog").setAttribute("aria-pressed",XONLY?"true":"false");chips();draw();stats();});
 $("refresh").onclick=load;
 $("critbtn").onclick=()=>{cat="critical";chips();draw();document.querySelector(".cols").scrollIntoView({behavior:"smooth"});};
 
@@ -1157,6 +1201,7 @@ async function load(){
  }
  $("updated").textContent=new Date().toLocaleTimeString(L==="ar"?"ar-AE":[], {hour:"2-digit",minute:"2-digit"});
  markFresh(); left=120;
+ chips();                       // refresh the counts now that data has arrived
  stats();draw();fillTicker();MC=paintMap();
 }
 
@@ -1183,12 +1228,19 @@ function fp(title){
 }
 // Overlap ratio against the shorter headline — rewrites drop and add words, so
 // measuring against the smaller set is more forgiving than plain Jaccard.
+// Overlap measured against the shorter headline, but only once BOTH headlines
+// carry enough words to make the comparison mean something. Without the floor,
+// a four-word headline that happens to share its four words with a long one
+// scores a perfect 1.00 and the long story is wrongly swallowed.
+const MIN_WORDS=4;    // below this a headline is never clustered, only kept
+const MIN_SHARED=4;   // and a merge needs this many shared words outright
+const SIM_MIN=0.62;
 function sim(a,b){
- if(!a.size||!b.size)return 0;
+ if(a.size<MIN_WORDS||b.size<MIN_WORDS)return 0;
  let n=0;for(const w of a) if(b.has(w))n++;
+ if(n<MIN_SHARED)return 0;
  return n/Math.min(a.size,b.size);
 }
-const SIM_MIN=0.62;   // two headlines this close are treated as the same story
 
 function cluster(list){
  const reps=[];                              // representatives, each with a word set
